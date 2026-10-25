@@ -3789,7 +3789,7 @@ async function paintStore() {
   const el = $('#storeInfo'); if (!el) return;
   try {
     const u = await Backup.usage();
-    el.textContent = u.files ? `附件 ${u.files} 个 · ${Backup.fmtBytes(u.bytes)}` : '本机存储';
+    el.textContent = u.files ? `${u.files} 个 · ${Backup.fmtBytes(u.bytes)}` : '本机';
   } catch (e) { }
 }
 function backupNudge() {
