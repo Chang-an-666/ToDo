@@ -2103,7 +2103,10 @@ body.drawer-drag .scrim { display: block; }
 .bk-item span { font-size: 11.5px; color: var(--ink2); }
 .bk-tip { font-size: 11px; color: var(--ink2); margin-top: 10px; line-height: 1.75; }
 .bk-loading { padding: 24px; text-align: center; color: var(--ink2); font-size: 12.5px; }
-.side-ver { margin-top: 10px; text-align: center; font-size: 10.5px; color: var(--ink2); opacity: .75; }
+.side-ver {
+  margin-top: 10px; text-align: center; font-size: 10px; line-height: 1.6;
+  color: var(--ink2); opacity: .75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 /* 已备份的附件 */
 .att-item .att-backed {
   font-size: 9.5px; padding: 1px 5px; border-radius: 99px;
