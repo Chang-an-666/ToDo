@@ -1,0 +1,13 @@
+{
+  "name": "xiaorizi",
+  "version": "3.0.0",
+  "private": true,
+  "description": "小日子 · 本地优先的计划本（待办 / 复盘 / 备考 / 花园）",
+  "scripts": {
+    "serve": "node tools/serve.js 8080",
+    "test": "node test/unit.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

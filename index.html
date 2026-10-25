@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="day">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>小日子 · 我的计划本</title>
+<meta name="theme-color" content="#FFD9E4" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="小日子" />
+<meta name="format-detection" content="telephone=no" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png?v=2" />
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- ============ 开屏动画 ============ -->
+<div class="splash" id="splash">
+  <div class="sp-clouds" id="spClouds"></div>
+  <div class="sp-float" id="spFloat"></div>
+  <div class="sp-inner">
+    <div class="sp-pet-wrap">
+      <div class="sp-pet" id="spPet">
+        <span class="sp-face" id="spFace">🐰</span>
+        <i class="sp-blush l"></i><i class="sp-blush r"></i>
+        <i class="sp-spark a">✨</i><i class="sp-spark b">💗</i>
+      </div>
+      <div class="sp-shadow"></div>
+    </div>
+    <div class="sp-bubble" id="spHi"></div>
+    <div class="sp-sub">正在整理你的小日子…</div>
+    <div class="sp-bar"><i></i></div>
+  </div>
+  <div class="sp-skip">点一下跳过 ~</div>
+</div>
+
+<div class="app" id="app">
+
+  <!-- 抽屉遮罩（手机上从左边滑出侧栏时用） -->
+  <div class="scrim" id="scrim"></div>
+
+  <!-- ============ 侧边栏（可收起 / 可拖拽调宽） ============ -->
+  <aside class="side" id="side">
+    <div class="side-top">
+      <div class="me">
+        <div class="avatar" id="avatar" title="点我换个头像">🌸</div>
+        <div class="me-txt">
+          <button type="button" class="me-name" id="meName" data-act="open-profile" title="登录账号 · 点一下看我的资料">小樱</button>
+          <div class="me-sub" id="meSub">今天也要加油呀</div>
+        </div>
+      </div>
+      <button class="fold" id="foldBtn" title="收起 / 展开">«</button>
+    </div>
+
+    <nav class="nav" id="nav">
+      <button class="nav-item is-active" data-act="nav" data-view="today"><i>🏠</i><span>今天</span></button>
+      <button class="nav-item" data-act="nav" data-view="calendar"><i>📅</i><span>日历</span></button>
+      <button class="nav-item" data-act="nav" data-view="review"><i>💌</i><span>复盘</span></button>
+      <button class="nav-item" data-act="nav" data-view="study"><i>📚</i><span>备考</span></button>
+      <button class="nav-item" data-act="nav" data-view="garden"><i>🌷</i><span>小花园</span></button>
+    </nav>
+
+    <div class="side-card" id="sideStats"></div>
+
+    <div class="side-foot">
+      <div class="d-title">小功能</div>
+      <button class="fn" data-act="theme"><i>🌙</i><span>晚安模式</span></button>
+      <button class="fn" data-act="export-md"><i>📝</i><span>导出 Markdown</span></button>
+      <button class="fn" data-act="print"><i>🖨️</i><span>打印本周</span></button>
+      <button class="fn" data-act="backup"><i>📤</i><span>导出备份</span></button>
+      <button class="fn" data-act="restore"><i>📥</i><span>导入备份</span></button>
+      <button class="fn" data-act="guide-open"><i>🎓</i><span>新手引导</span></button>
+      <button class="fn" data-act="open-profile"><i>👤</i><span>我的资料</span></button>
+      <button class="fn danger" data-act="clear"><i>🧹</i><span>清空数据</span></button>
+      <div class="side-ver"><span id="storeInfo">本机存储</span> · <span id="appVer">v3.0.0</span></div>
+    </div>
+  </aside>
+
+  <!-- 拖拽把手 -->
+  <div class="resizer" id="resizer" title="拖动我调整宽度，往左拖到底可以收起"><span></span></div>
+
+  <!-- ============ 主区域 ============ -->
+  <main class="main">
+    <header class="topbar">
+      <button class="round-btn" id="menuBtn" title="展开侧边栏">☰</button>
+      <div class="tb-title">
+        <h1 id="viewTitle">今天</h1>
+        <p id="viewSub"></p>
+      </div>
+      <div class="tb-right">
+        <button class="round-btn" id="btnMood" title="今天的心情">🙂</button>
+        <button class="round-btn" data-act="theme" title="晚安模式">🌙</button>
+        <button class="soft-btn primary" data-act="new-task">＋ 加一件事</button>
+      </div>
+    </header>
+
+    <!-- 下拉刷新提示条 -->
+    <div class="ptr" id="ptr"><i>🌷</i><b>下拉刷新</b></div>
+
+    <div class="pop" id="moodPop">
+      <div class="pop-title">今天的心情是~</div>
+      <div class="mood-row">
+        <button data-mood="great">🤩<span>超有劲</span></button>
+        <button data-mood="happy">😊<span>开心</span></button>
+        <button data-mood="calm">🙂<span>平静</span></button>
+        <button data-mood="tired">😪<span>有点累</span></button>
+        <button data-mood="down">🥺<span>小难过</span></button>
+      </div>
+    </div>
+
+    <section class="content" id="content"></section>
+  </main>
+</div>
+
+<!-- ============ 手机端底部标签栏（iPhone 习惯） ============ -->
+<nav class="tabbar" id="tabbar" aria-label="主导航">
+  <button class="tb-item is-active" data-act="nav" data-view="today"><i>🏠</i><span>今天</span></button>
+  <button class="tb-item" data-act="nav" data-view="calendar"><i>📅</i><span>日历</span></button>
+  <button class="tb-item" data-act="nav" data-view="review"><i>💌</i><span>复盘</span></button>
+  <button class="tb-item" data-act="nav" data-view="study"><i>📚</i><span>备考</span></button>
+  <button class="tb-item" data-act="nav" data-view="garden"><i>🌷</i><span>花园</span></button>
+</nav>
+
+<button class="fab" data-act="new-task" title="添加一件小事">＋</button>
+
+<!-- ============ 弹窗：任务 ============ -->
+<div class="mask" id="maskTask">
+  <div class="modal">
+    <div class="modal-head"><h3 id="taskTitle">添加一件小事</h3>
+      <button class="round-btn" data-act="close-task">✕</button></div>
+    <form class="modal-body form" id="formTask">
+      <input type="hidden" name="id" />
+      <label class="field"><span>要做的事</span>
+        <input name="title" type="text" placeholder="例如：给绿萝浇浇水" required maxlength="40" /></label>
+      <div class="grid-2">
+        <label class="field"><span>哪一天</span><input name="date" type="date" /></label>
+        <label class="field"><span>时间（可不填）</span><input name="time" type="time" /></label>
+      </div>
+      <div class="field"><span>放进哪个小篮子</span><div class="tag-row" id="tagRow"></div><input type="hidden" name="tag" />
+        <div class="basket-box hidden" id="basketBox">
+          <div class="bk-head"><b id="bkTitle">做一个新篮子</b>
+            <button type="button" class="round-btn" data-act="bk-cancel">✕</button></div>
+          <input type="text" id="bkName" maxlength="8" placeholder="给它起个名字，比如：画画" />
+          <div class="bk-label">挑个小图标</div>
+          <div class="bk-emojis" id="bkEmojis"></div>
+          <div class="bk-label">挑个颜色</div>
+          <div class="bk-colors" id="bkColors"></div>
+          <div class="bk-foot">
+            <button type="button" class="soft-btn danger hidden" id="bkDel">收起这个篮子</button>
+            <div class="spacer"></div>
+            <button type="button" class="soft-btn primary" id="bkSave">好啦</button>
+          </div>
+        </div>
+      </div>
+      <div class="field"><span>重要程度</span>
+        <div class="pri-row" id="priRow">
+          <button type="button" data-pri="high">🌶️ 先做这个</button>
+          <button type="button" data-pri="mid" class="on">🌼 慢慢来</button>
+          <button type="button" data-pri="low">🍃 有空再说</button>
+        </div>
+        <input type="hidden" name="priority" value="mid" /></div>
+      <div class="field"><span>多久做一次</span>
+        <div class="rep-row" id="repRow"></div>
+        <div class="rep-every hidden" id="repEveryBox">
+          <span>每</span>
+          <input type="number" id="repEvery" min="1" max="30" value="2" />
+          <select id="repUnit">
+            <option value="day">天</option>
+            <option value="week">周</option>
+            <option value="month">个月</option>
+          </select>
+          <span>一次</span>
+        </div>
+        <div class="rep-hint" id="repHint"></div>
+      </div>
+      <label class="field"><span>小备注</span><textarea name="note" rows="2" placeholder="想对自己说的悄悄话…"></textarea></label>
+      <div class="modal-foot">
+        <button type="button" class="soft-btn danger hidden" id="btnDelTask" data-act="del-task-modal">删除</button>
+        <div class="spacer"></div>
+        <button type="button" class="soft-btn" data-act="close-task">再想想</button>
+        <button type="submit" class="soft-btn primary">好啦，记下</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ 弹窗：复盘 ============ -->
+<div class="mask" id="maskReview">
+  <div class="modal">
+    <div class="modal-head"><h3 id="reviewTitle">给自己的一封信</h3>
+      <button class="round-btn" data-act="close-review">✕</button></div>
+    <form class="modal-body form" id="formReview">
+      <input type="hidden" name="id" />
+      <div class="grid-2">
+        <label class="field"><span>复盘什么</span>
+          <select name="type" id="reviewType">
+            <option value="day">今天</option>
+            <option value="week">这一周</option>
+            <option value="month">这个月</option>
+            <option value="stage">一个阶段</option>
+          </select></label>
+        <label class="field"><span>从哪天开始</span><input name="date" type="date" /></label>
+      </div>
+      <label class="field hidden" id="endField"><span>到哪天结束</span><input name="endDate" type="date" /></label>
+      <div class="auto-box" id="reviewAuto"></div>
+      <div class="field"><span>这段时间心情怎么样</span>
+        <div class="mood-row small" id="reviewMood">
+          <button type="button" data-mood="great">🤩</button>
+          <button type="button" data-mood="happy">😊</button>
+          <button type="button" data-mood="calm">🙂</button>
+          <button type="button" data-mood="tired">😪</button>
+          <button type="button" data-mood="down">🥺</button>
+        </div>
+        <input type="hidden" name="mood" value="happy" /></div>
+      <label class="field"><span>做得不错的三件小事</span>
+        <textarea name="good" rows="3" placeholder="1. 早起啦&#10;2. 完成了方案&#10;3. 给妈妈打了电话"></textarea></label>
+      <label class="field"><span>想对自己说的话</span>
+        <textarea name="words" rows="2" placeholder="今天有点累，但你已经很棒了，早点睡呀~"></textarea></label>
+      <label class="field"><span>接下来想先做的一件事</span>
+        <textarea name="next" rows="2" placeholder="明天先把最难的那件做完"></textarea></label>
+      <div class="modal-foot">
+        <button type="button" class="soft-btn danger hidden" id="btnDelReview" data-act="del-review-modal">删除</button>
+        <div class="spacer"></div>
+        <button type="button" class="soft-btn" data-act="close-review">再想想</button>
+        <button type="submit" class="soft-btn primary">收好这封信</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ 弹窗：纪念日 ============ -->
+<div class="mask" id="maskWish">
+  <div class="modal">
+    <div class="modal-head"><h3 id="wishTitle">记一个重要的日子</h3>
+      <button class="round-btn" data-act="close-wish">✕</button></div>
+    <form class="modal-body form" id="formWish">
+      <input type="hidden" name="id" />
+      <label class="field"><span>是什么日子呀</span>
+        <input name="title" type="text" placeholder="例如：和小林的旅行" required maxlength="24" /></label>
+      <div class="grid-2">
+        <label class="field"><span>日期</span><input name="date" type="date" /></label>
+        <label class="field"><span>类型</span>
+          <select name="icon" id="wishIcon">
+            <option value="🎂">🎂 生日</option>
+            <option value="💗">💗 纪念日</option>
+            <option value="✈️">✈️ 出行 / 旅行</option>
+            <option value="📝">📝 考试 / 交付</option>
+            <option value="🩺">🩺 复诊 / 体检</option>
+            <option value="🎁">🎁 节日</option>
+            <option value="🤝">🤝 约定 / 见面</option>
+            <option value="⭐">⭐ 其他</option>
+          </select></label>
+      </div>
+      <div class="grid-2">
+        <label class="field"><span>提前提醒</span>
+          <select name="remind">
+            <option value="0">就当天提醒</option>
+            <option value="1">提前 1 天</option>
+            <option value="3" selected>提前 3 天</option>
+            <option value="7">提前 7 天</option>
+            <option value="15">提前 15 天</option>
+            <option value="30">提前 30 天</option>
+          </select></label>
+        <label class="field"><span>喜欢的颜色</span>
+          <select name="color">
+            <option value="pink">🌸 樱花粉</option>
+            <option value="lav">🔮 丁香紫</option>
+            <option value="mint">🌿 薄荷绿</option>
+            <option value="peach">🍑 蜜桃橙</option>
+            <option value="sky">☁️ 天空蓝</option>
+          </select></label>
+      </div>
+      <label class="check"><input type="checkbox" name="yearly" /><span>每年都会来一次</span></label>
+      <label class="field"><span>小备注</span><textarea name="note" rows="2" placeholder="要提前订蛋糕、买机票…"></textarea></label>
+      <div class="modal-foot">
+        <button type="button" class="soft-btn danger hidden" id="btnDelWish" data-act="del-wish-modal">删除</button>
+        <div class="spacer"></div>
+        <button type="button" class="soft-btn" data-act="close-wish">再想想</button>
+        <button type="submit" class="soft-btn primary">记下啦</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ 弹窗：备考 · 一段学习复盘 ============ -->
+<div class="mask" id="maskSrev">
+  <div class="modal">
+    <div class="modal-head"><h3 id="srevTitle">这一段的复盘</h3>
+      <button class="round-btn" data-act="close-srev">✕</button></div>
+    <form class="modal-body form" id="formSrev">
+      <input type="hidden" name="id" />
+      <input type="hidden" name="sid" />
+      <div class="srev-head" id="srevHead"></div>
+      <label class="field"><span>这段时间在学什么 · 学到了什么</span>
+        <textarea name="learned" rows="3" placeholder="例如：资料分析的增长率比较，学会了用倍数代替硬除法"></textarea></label>
+      <label class="field"><span>卡在哪儿 / 错在哪儿</span>
+        <textarea name="stuck" rows="2" placeholder="例如：基期和现期搞混了，选项里的时间坑没看到"></textarea></label>
+      <label class="field"><span>下一步要先做的一件事</span>
+        <input name="next" type="text" maxlength="40" placeholder="例如：明天先刷 20 道增长率专项" /></label>
+      <div class="grid-2">
+        <label class="field"><span>做了几题</span><input name="qAll" type="number" min="0" max="999" placeholder="可不填" /></label>
+        <label class="field"><span>对了几题</span><input name="qRight" type="number" min="0" max="999" placeholder="可不填" /></label>
+      </div>
+      <div class="field"><span>也可以这样记录</span>
+        <div class="att-bar">
+          <button type="button" class="att-btn" id="attRec">🎙️<span>录一段</span></button>
+          <button type="button" class="att-btn" id="attImg">🖼️<span>贴张图</span></button>
+          <button type="button" class="att-btn" id="attDoc">📎<span>存个档</span></button>
+        </div>
+        <input type="file" id="attImgIn" accept="image/*" hidden />
+        <input type="file" id="attDocIn" hidden />
+        <div class="att-list" id="attList"></div>
+      </div>
+      <div class="field"><span>这段时间感觉怎么样</span>
+        <div class="mood-row small" id="srevRate">
+          <button type="button" data-rate="0">😵<span>完全没懂</span></button>
+          <button type="button" data-rate="1">😕<span>有点懵</span></button>
+          <button type="button" data-rate="2" class="on">🙂<span>还行吧</span></button>
+          <button type="button" data-rate="3">😊<span>挺顺的</span></button>
+          <button type="button" data-rate="4">🤩<span>通透了</span></button>
+        </div>
+        <input type="hidden" name="rate" value="2" /></div>
+      <div class="modal-foot">
+        <button type="button" class="soft-btn danger hidden" id="btnDelSrev" data-act="del-srev-modal">删除</button>
+        <div class="spacer"></div>
+        <button type="button" class="soft-btn" data-act="srev-skip">这次先不写</button>
+        <button type="submit" class="soft-btn primary">收好这段</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ 弹窗：备考 · 自定义栏目 ============ -->
+<div class="mask" id="maskSubject">
+  <div class="modal">
+    <div class="modal-head"><h3 id="sbjTitle">加一个自己的栏目</h3>
+      <button class="round-btn" data-act="close-sbj">✕</button></div>
+    <form class="modal-body form" id="formSubject">
+      <input type="hidden" name="id" />
+      <label class="field"><span>栏目名字</span>
+        <input name="n" id="sbjName" type="text" maxlength="8" placeholder="例如：面试练习" required /></label>
+      <div class="field"><span>挑个小图标</span>
+        <div class="bk-emojis" id="sbjEmojis"></div>
+        <input type="text" class="bk-emo-free" id="sbjEmojiFree" maxlength="4" placeholder="自己贴一个也行 ~" /></div>
+      <div class="field"><span>挑个颜色</span><div class="bk-colors" id="sbjColors"></div></div>
+      <label class="field"><span>每天想学多少分钟</span>
+        <input name="target" type="number" min="5" max="480" value="30" /></label>
+      <div class="modal-foot">
+        <button type="button" class="soft-btn danger hidden" id="btnDelSubject" data-act="del-sbj-modal">收起这个栏目</button>
+        <div class="spacer"></div>
+        <button type="button" class="soft-btn" data-act="close-sbj">再想想</button>
+        <button type="submit" class="soft-btn primary">好啦</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ 弹窗：我的资料 ============ -->
+<div class="mask" id="maskProfile">
+  <div class="modal">
+    <div class="modal-head"><h3>我的资料</h3>
+      <button class="round-btn" data-act="close-profile">✕</button></div>
+    <div class="modal-body form">
+      <div class="pf-top">
+        <div class="pf-av" id="pfAv">🌸</div>
+        <div class="pf-av-btns">
+          <input type="file" id="pfFile" accept="image/*" hidden />
+          <button type="button" class="soft-btn" data-act="pf-upload">上传头像</button>
+          <button type="button" class="soft-btn" data-act="pf-random">换个 emoji</button>
+        </div>
+      </div>
+      <label class="field"><span>昵称</span>
+        <input id="pfName" maxlength="20" placeholder="别人看到的名字" /></label>
+      <div class="pf-hint">这些资料只存在这台设备上</div>
+      <label class="field"><span>签名</span>
+        <input id="pfSign" maxlength="40" placeholder="一句话介绍自己，比如：每天进步一点点" /></label>
+      <div class="modal-foot">
+        <div class="spacer"></div>
+        <button type="button" class="soft-btn" data-act="close-profile">取消</button>
+        <button type="button" class="soft-btn primary" data-act="pf-save">保存资料</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ============ 新手引导（只出现一次） ============ -->
+<div class="guide hidden" id="guide">
+  <div class="gd-card">
+    <button type="button" class="gd-skip" data-act="guide-skip">跳过</button>
+    <div class="gd-stage">
+      <div class="gstep on" data-step="0">
+        <div class="g1-box">
+          <span class="g1-ico">✍️</span>
+          <span class="g1-txt">把今天最重要的事做完</span>
+          <i class="g1-cursor"></i>
+        </div>
+        <div class="g1-hint">想到什么就写下来，一句话就够</div>
+      </div>
+      <div class="gstep" data-step="1">
+        <div class="g2-row">
+          <span class="g2-ring"><i class="g2-check">✓</i></span>
+          <span class="g2-t">把今天最重要的事做完</span>
+        </div>
+        <div class="g2-drop">💧 +3</div>
+        <div class="g1-hint">做完点一下小圆圈，露珠就到手了</div>
+      </div>
+      <div class="gstep" data-step="2">
+        <div class="g3-wrap">
+          <svg class="g3-ring" viewBox="0 0 120 120">
+            <circle class="bg" cx="60" cy="60" r="52"/>
+            <circle class="fg" cx="60" cy="60" r="52"/>
+          </svg>
+          <span class="g3-time">25:00</span>
+          <span class="g3-plant">🌱</span>
+        </div>
+        <div class="g1-hint">学一段计时，露珠能把花园养大</div>
+      </div>
+    </div>
+    <h2 class="gd-title" id="gdTitle">从一件很小的事开始</h2>
+    <p class="gd-sub" id="gdSub">写下今天最想完成的那件，不用多，一件就行。</p>
+    <div class="gd-dots" id="gdDots">
+      <i class="on"></i><i></i><i></i>
+    </div>
+    <div class="gd-btns">
+      <button type="button" class="soft-btn" data-act="guide-prev">上一步</button>
+      <button type="button" class="soft-btn primary" data-act="guide-next" id="gdNext">下一步</button>
+    </div>
+    <div class="gd-tip">这些内容只演示，不会留在你的清单里</div>
+  </div>
+</div>
+
+<!-- ============ 弹窗：导出备份 ============ -->
+<div class="mask" id="maskBackup">
+  <div class="modal">
+    <div class="modal-head"><h3>导出备份</h3>
+      <button type="button" class="round-btn" data-act="close-backup">✕</button></div>
+    <div class="modal-body" id="backupBody"></div>
+  </div>
+</div>
+
+<input type="file" id="restoreFile" accept=".json,.zip,application/json,application/zip" hidden />
+
+<div class="toast" id="toast"></div>
+<div class="tm-pill hidden" id="tmPill"></div>
+<div class="print-area" id="printArea"></div>
+<div class="sky" id="sky"></div>
+
+<script src="js/zip.js"></script>
+<script src="js/backup.js"></script>
+<script src="js/migrate.js"></script>
+<script src="app.js"></script>
+<script>
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => { }));
+}
+</script>
+</body>
+</html>
