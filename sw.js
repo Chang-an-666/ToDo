@@ -3,7 +3,7 @@
    策略：网络优先（保证永远是新版），1.5 秒超时或断网时回落到缓存
    改了代码 → 这里 VERSION 变 → 浏览器装新 SW → 下次打开就是新版
    ========================================================== */
-const VERSION = 'v3.0.0';
+const VERSION = 'v3.0.1';
 const CACHE = 'xiaorizi-' + VERSION;
 
 const ASSETS = [

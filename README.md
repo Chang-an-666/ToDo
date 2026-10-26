@@ -9,28 +9,49 @@
 
 | 方式 | 步骤 |
 | --- | --- |
-| 在线（推荐） | 打开 `https://<你的用户名>.github.io/<仓库名>/` |
+| 在线（推荐） | 打开 `https://<项目名>.pages.dev/` |
 | 手机上 | Safari 打开上面的地址 → 分享 → **添加到主屏幕**（全屏、有图标） |
 | 本地 | 双击 `index.html`（部分功能受限，见下） |
 
-## 部署到 GitHub Pages（一次配置，以后 push 即更新）
+## 部署到 Cloudflare Pages
 
-1. 新建一个仓库，把本目录推上去（分支 `main`）
-2. 仓库 **Settings → Pages → Build and deployment → Source** 选 **GitHub Actions**
-3. 首次 push 后 `.github/workflows/pages.yml` 会自动发布
-4. 之后每次 `git push`，几十秒后同一个网址就变成新版
+代码放 GitHub，站点放 Cloudflare Pages。**网址固定不变，改代码只换内容。**
 
-网址永远不变，不需要重新部署、不需要换链接。
+### 方式 A：后台连 GitHub（推荐，零命令）
+
+一次配置，之后 `git push` 就自动发布：
+
+1. Cloudflare → **Workers & Pages → Create → Pages → Connect to Git**
+2. 选你的仓库，分支 `main`
+3. 构建命令**留空**，输出目录填 **`/`**（纯静态，不需要构建）
+4. 部署完拿到 `https://<项目名>.pages.dev`
+
+> 为什么构建命令留空：这个项目没有打包步骤，仓库根目录就是最终产物。
+
+### 方式 B：本地一条命令
+
+不想连 GitHub、或者想手动控制发布时机：
 
 ```bash
-git init && git add -A
-git commit -m "小日子 v3"
-git remote add origin https://github.com/<你>/<仓库>.git
-git push -u origin main
+npx wrangler login            # 首次，浏览器点一下授权
+npm run ship                  # 打包 + 发布，10 秒
 ```
 
-> 想让用户立刻拿到新版：把 `sw.js` 顶部的 `VERSION` 改一下（比如 `v3.0.1`）。
-> Service Worker 会自动更新缓存，用户下次打开就是新的。
+首次如果项目还不存在：
+
+```bash
+npx wrangler pages project create xiaorizi
+```
+
+- `npm run pack` 只打包到 `.publish`，不发布
+- 项目名被占就换：`PAGES_PROJECT=xiaorizi-changan npm run ship`
+- 无人值守（CI）用 `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`
+
+### 为什么网址不会变
+
+- Cloudflare Pages 的域名绑在**项目**上，每次部署只替换产物，不动域名
+- `_headers` 把所有代码文件设成 `no-cache`，改完推上去用户下次打开就是新版
+- Service Worker 用网络优先（1.5 秒超时回落缓存），断网也能开
 
 ## 备份（这套方案的核心）
 
@@ -72,8 +93,10 @@ git push -u origin main
 ## 本地开发
 
 ```bash
-npm run serve     # http://127.0.0.1:8080
+npm run serve     # http://127.0.0.1:8080（模拟 Pages 的 no-cache）
 npm test          # 28 项：zip 打包/解包、导出/导入、数据迁移
+npm run pack      # 只打包到 .publish，看看会传哪些文件
+npm run ship      # 打包 + 发布到 Cloudflare Pages
 node tools/gen-icons.js   # 重新生成图标（改配色时用）
 ```
 
@@ -90,7 +113,10 @@ sw.js                 Service Worker（离线 + 自动更新）
 manifest.webmanifest  PWA 清单
 icons/                图标（180 / 192 / 512 / 32）
 tools/serve.js        本地预览服务
+tools/ship.js         一键发布（打包 + wrangler 上传）
 tools/gen-icons.js    图标生成器
+_headers              Cloudflare 响应头（全 no-cache）
+.nojekyll             防止任何静态托管跑 Jekyll
 test/unit.test.js     单元测试
 ```
 

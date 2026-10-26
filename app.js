@@ -260,7 +260,7 @@ const saveUi = () => save();
    本地模式：没有服务器，数据只存在这台设备
    ========================================================== */
 const AUTH = { user: null, ok: false, offline: true };
-const APP_VERSION = '3.0.0';
+const APP_VERSION = '3.0.1';
 
 /* 头像 / 昵称 / 签名都以本地 state.me 为准 */
 function paintProfile() {
