@@ -260,7 +260,7 @@ const saveUi = () => save();
    本地模式：没有服务器，数据只存在这台设备
    ========================================================== */
 const AUTH = { user: null, ok: false, offline: true };
-const APP_VERSION = '3.0.1';
+const APP_VERSION = '3.0.2';
 
 /* 头像 / 昵称 / 签名都以本地 state.me 为准 */
 function paintProfile() {
@@ -410,11 +410,15 @@ function schedule(key, fn) {
   jobs.set(key, fn);
   if (scheduled) return;
   scheduled = true;
-  Promise.resolve().then(() => requestAnimationFrame(() => {
+  const flush = () => {
+    if (!scheduled) return;
     scheduled = false;
     const list = [...jobs.values()]; jobs.clear();
     list.forEach((f) => { try { f(); } catch (e) { console.error(e); } });
-  }));
+  };
+  Promise.resolve().then(() => requestAnimationFrame(flush));
+  /* 后台标签 / 低端机上 rAF 会被节流甚至不触发，加一层兜底 */
+  setTimeout(flush, 120);
 }
 
 function toast(msg, face) {
@@ -2093,6 +2097,13 @@ function plotCell(p, i) {
     <span class="pl-tag">${full ? '点我收获' : `${p.water}/${need} 滴`}</span>
   </button>`;
 }
+function goalLeft(due) {
+  if (!due) return '目标';
+  const n = diff(today(), due);
+  if (n > 0) return `还剩 ${n} 天`;
+  if (n === 0) return '就是今天';
+  return `超期 ${-n} 天`;
+}
 function taskRow(t) {
   const tg = tagOf(t.tag);
   const bkStyle = tg && tg.c ? ` style="background:var(--${tg.c}-s);color:var(--${tg.c})"` : '';
@@ -2113,6 +2124,7 @@ function taskRow(t) {
           ${t.time ? `<span>${t.time}</span>` : ''}
           ${tg ? `<span class="chip"${bkStyle}>${tg.e} ${esc(tg.k)}</span>` : ''}
           ${t.rep && t.rep.unit ? `<span class="chip rep" title="重复的小事">🔁 ${repText(t.rep)}</span>` : ''}
+          ${t.goal ? `<span class="chip goal" title="小目标">🎯 ${goalLeft(t.goal.due)}</span>` : ''}
           <span class="chip ${t.priority}">${PRI[t.priority].e} ${PRI[t.priority].t}</span>
           ${!t.done && t.date < today() ? '<span class="chip high">还没做呢</span>' : ''}
         </div>
@@ -2337,44 +2349,120 @@ function weekGrid(a) {
 }
 
 /* ---------- 复盘 ---------- */
-function viewReview() {
-  const tabs = ['day', 'week', 'month', 'stage'];
-  const names = { day: '今天', week: '这一周', month: '这个月', stage: '一个阶段' };
-  const list = state.reviews.filter((r) => r.type === ui.reviewTab).sort((a, b) => a.date < b.date ? 1 : -1);
-  return `<div class="pill-row">
-      ${tabs.map((t) => `<button class="pill ${ui.reviewTab === t ? 'on' : ''}" data-act="rtab" data-tab="${t}">${names[t]}</button>`).join('')}
-    </div>
-    <div style="text-align:center;margin-bottom:14px">
-      <button class="soft-btn primary" data-act="new-review" data-type="${ui.reviewTab}"
-        data-date="${ui.reviewTab === 'week' ? weekStart(today()) : ui.reviewTab === 'month' ? monthStart(today()) : today()}">
-        💌 写${names[ui.reviewTab]}的复盘</button>
-    </div>
-    ${list.length ? list.map(letterCard).join('')
-      : '<div class="card"><div class="empty"><span class="face">💌</span>还没有写给自己的信，点上面写第一封吧~</div></div>'}`;
+const RV_TABS = [['day', '今天', '✍️'], ['week', '这一周', '🌿'], ['month', '这个月', '🌙'], ['stage', '一个阶段', '🎯']];
+const CHEERS = [
+  '写完啦，今天也算好好过了 🌸',
+  '记下来就不会丢 ✨',
+  '对自己诚实，是很了不起的事 💮',
+  '这一页，以后你会想重读的 📖',
+  '又攒下一点自己的形状 🌷',
+];
+function cheer() { return CHEERS[Math.floor(Math.random() * CHEERS.length)]; }
+
+/* 当前这个周期的起止（阶段复盘没有固定周期） */
+function rvPeriod(tab) {
+  const t = today();
+  if (tab === 'week') { const a = weekStart(t); return { a, b: addDays(a, 6), label: `${a.slice(5)} - ${addDays(a, 6).slice(5)}` }; }
+  if (tab === 'month') { const a = monthStart(t); return { a, b: monthEnd(t), label: monthText(t) }; }
+  return { a: t, b: t, label: dayText(t) };
 }
+
+function viewReview() {
+  const cur = ui.reviewTab || 'day';
+  const pd = rvPeriod(cur);
+  const all = tasksIn(pd.a, pd.b), dn = all.filter((x) => x.done);
+  const pct = all.length ? Math.round(dn.length / all.length * 100) : 0;
+  const isStage = cur === 'stage';
+
+  /* 这个周期是否已经写过 */
+  const written = state.reviews.find((r) => r.type === cur
+    && (isStage ? true : (r.date >= pd.a && r.date <= pd.b)));
+  const goals = state.tasks.filter((t) => t.goal && t.date <= pd.b && (!t.goal.due || t.goal.due >= pd.a));
+  const list = state.reviews.filter((r) => r.type === cur)
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+
+  const dateFor = cur === 'week' ? weekStart(today()) : cur === 'month' ? monthStart(today()) : today();
+
+  return `<div class="pill-row">
+      ${RV_TABS.map(([k, n, e]) => `<button class="pill ${cur === k ? 'on' : ''}" data-act="rtab" data-tab="${k}">${e} ${n}</button>`).join('')}
+    </div>
+
+    <section class="rv-hero ${written ? 'is-done' : ''}">
+      <div class="rv-hero-face">${written ? '💌' : isStage ? '🎯' : '✍️'}</div>
+      <div class="rv-hero-main">
+        <div class="rv-hero-title">${written ? `${pd.label} 已经写过啦` : `记几句${RV_TABS.find((x) => x[0] === cur)[1]}的总结`}</div>
+        <div class="rv-hero-sub">${isStage ? '挑一段时间，回头看看走过的路' : `${pd.label} · ${all.length ? `完成 ${dn.length}/${all.length} 件` : '还没有记小事'}`}</div>
+        ${isStage ? '' : `<div class="rv-bar"><i style="width:${pct}%"></i></div>`}
+      </div>
+      <button class="soft-btn primary rv-go" data-act="${written ? 'edit-review' : 'new-review'}"
+        ${written ? `data-id="${written.id}"` : `data-type="${cur}" data-date="${dateFor}"`}>
+        ${written ? '看看 / 改改' : '开始写'}
+      </button>
+    </section>
+
+    ${goals.length ? `<section class="rv-goals">
+      <div class="rv-goals-h">🎯 这段时间在追的小目标</div>
+      ${goals.slice(0, 5).map((t) => `<div class="rv-goal ${t.done ? 'ok' : ''}">
+        <span class="rv-goal-t">${esc(t.title)}</span>
+        <span class="rv-goal-s">${t.done ? '做到啦 🎉' : goalLeft(t.goal.due)}</span>
+      </div>`).join('')}
+    </section>` : ''}
+
+    ${list.length ? `<div class="rv-list">${list.map(letterCard).join('')}</div>`
+      : `<div class="card"><div class="empty">
+          <span class="face">💌</span>
+          ${isStage ? '还没有阶段复盘，挑一段值得记住的日子写写看' : '还没写过' + RV_TABS.find((x) => x[0] === cur)[1] + '的复盘'}
+        </div></div>`}`;
+}
+
 function letterCard(r) {
   const range = r.type === 'day' ? dayText(r.date)
-    : r.type === 'week' ? `${r.date.slice(5)} - ${r.endDate.slice(5)}`
-      : r.type === 'month' ? monthText(r.date) : `${r.date} - ${r.endDate || '进行中'}`;
+    : r.type === 'week' ? `${r.date.slice(5)} - ${(r.endDate || r.date).slice(5)}`
+      : r.type === 'month' ? monthText(r.date) : `${r.date.slice(5)} - ${(r.endDate || '进行中').slice(5)}`;
   const { a, b } = reviewRange(r);
   const all = tasksIn(a, b), dn = all.filter((x) => x.done);
   return `<div class="letter">
-    <div class="letter-top">
-      <span class="face">${MOODS[r.mood] || '😊'}</span>
-      <div><div class="when">${range}</div><div class="sub">完成了 ${dn.length} 件小事 · ${typeName(r.type)}</div></div>
-      <div class="letter-act">
-        <button class="ico-btn" data-act="edit-review" data-id="${r.id}">✏️</button>
-        <button class="ico-btn" data-act="del-review" data-id="${r.id}">🗑️</button>
+    <div class="letter-dot">${MOODS[r.mood] || '😊'}</div>
+    <div class="letter-card">
+      <div class="letter-top">
+        <div>
+          <div class="when">${range}</div>
+          <div class="sub">${dn.length ? `完成 ${dn.length} 件小事` : '这段时间没记小事'} · ${typeName(r.type)}</div>
+        </div>
+        <div class="letter-act">
+          <button class="ico-btn" data-act="edit-review" data-id="${r.id}">✏️</button>
+          <button class="ico-btn" data-act="del-review" data-id="${r.id}">🗑️</button>
+        </div>
       </div>
+      <div class="letter-body">
+        ${r.good ? `<p><span class="lb">✨</span>${esc(r.good).replace(/\n/g, '<br>')}</p>` : ''}
+        ${r.words ? `<p><span class="lb">💬</span>${esc(r.words).replace(/\n/g, '<br>')}</p>` : ''}
+      </div>
+      ${r.next ? `<div class="next-line">🌱 接下来：${esc(r.next)}</div>` : ''}
+      ${dn.length ? `<div class="letter-done">做到的小事：${dn.slice(0, 4).map((x) => esc(x.title)).join('、')}${dn.length > 4 ? ` 等 ${dn.length} 件` : ''}</div>` : ''}
     </div>
-    <div class="letter-body">
-      <p><span class="lb">做得不错的：</span>${esc(r.good || '—')}</p>
-      <p><span class="lb">想对自己说：</span>${esc(r.words || '—')}</p>
-    </div>
-    ${r.next ? `<div class="next-line">🌱 接下来先做：${esc(r.next)}</div>` : ''}
-    ${dn.length ? `<div class="sub" style="margin-top:8px;font-size:12px">这段时间做完：${dn.slice(0, 4).map((x) => esc(x.title)).join('、')}${dn.length > 4 ? ' 等 ' + dn.length + ' 件' : ''}</div>` : ''}
   </div>`;
 }
+
+/* 完成时撒一点花 */
+function celebrate(n = 16) {
+  if (RM) return;
+  const box = document.createElement('div');
+  box.className = 'confetti';
+  const emo = ['🌸', '🌷', '✨', '🍀', '💮', '🌟', '🎉'];
+  for (let i = 0; i < n; i++) {
+    const s = document.createElement('i');
+    s.textContent = emo[i % emo.length];
+    s.style.left = (6 + Math.random() * 88).toFixed(1) + '%';
+    s.style.fontSize = (13 + Math.random() * 13).toFixed(0) + 'px';
+    s.style.animationDelay = (Math.random() * 0.45).toFixed(2) + 's';
+    s.style.animationDuration = (1.7 + Math.random() * 0.9).toFixed(2) + 's';
+    box.appendChild(s);
+  }
+  document.body.appendChild(box);
+  setTimeout(() => box.remove(), 3000);
+}
+
 const typeName = (t) => ({ day: '日复盘', week: '周复盘', month: '月复盘', stage: '阶段复盘' }[t]);
 function reviewRange(r) {
   if (r.type === 'day') return { a: r.date, b: r.date };
@@ -2559,6 +2647,12 @@ function openTask(id, date) {
   $$('#priRow button').forEach((b) => b.classList.toggle('on', b.dataset.pri === pri));
   ui.rep = t && t.rep ? { unit: t.rep.unit, every: t.rep.every } : null;
   renderRepRow();
+  /* 阶段性目标 */
+  const goal = t && t.goal ? t.goal : null;
+  e.isGoal.value = goal ? '1' : '0';
+  e.goalDue.value = goal && goal.due ? goal.due : '';
+  $$('#goalRow button').forEach((b) => b.classList.toggle('on', b.dataset.goal === e.isGoal.value));
+  $('#goalBox').classList.toggle('hidden', !goal);
   openMask('#maskTask');
   setTimeout(() => e.title.focus(), 40);
 }
@@ -2706,8 +2800,14 @@ function updateAuto() {
   else if (type === 'stage') { b = e.endDate.value || today(); }
   if (b < a) b = a;
   const all = tasksIn(a, b), dn = all.filter((x) => x.done);
+  const goals = state.tasks.filter((t) => t.goal && t.date <= b && (!t.goal.due || t.goal.due >= a));
+  const gHtml = goals.length
+    ? `<div class="auto-goals">${goals.slice(0, 4).map((t) => `<span class="auto-goal ${t.done ? 'ok' : ''}">`
+      + `🎯 ${esc(t.title)}${t.done ? ' ✓' : (t.goal.due ? ` · ${goalLeft(t.goal.due)}` : '')}</span>`).join('')}</div>`
+    : '';
   $('#reviewAuto').innerHTML = `<b>这段时间（${a} ~ ${b}）</b>一共 ${all.length} 件小事，已经完成 ${dn.length} 件 🌸`
-    + (dn.length ? `<br>${dn.slice(0, 5).map((x) => esc(x.title)).join('、')}${dn.length > 5 ? ' …' : ''}` : '');
+    + (dn.length ? `<br>${dn.slice(0, 5).map((x) => esc(x.title)).join('、')}${dn.length > 5 ? ' …' : ''}` : '')
+    + gHtml;
 }
 function openWish(id, date) {
   const w = id ? state.wishes.find((x) => x.id === id) : null;
@@ -2738,6 +2838,7 @@ $('#formTask').addEventListener('submit', (ev) => {
   let i = state.tasks.findIndex((x) => x.id === data.id);
   state.settings.lastTag = data.tag;
   data.rep = readRep();
+  if (e.isGoal.value === '1') data.goal = { due: e.goalDue.value || '' };
   let made = 0;
   if (i >= 0) {
     const old = state.tasks[i];
@@ -2811,8 +2912,11 @@ $('#formReview').addEventListener('submit', (ev) => {
     mood: e.mood.value, good: e.good.value.trim(), words: e.words.value.trim(), next: e.next.value.trim(),
   };
   const i = state.reviews.findIndex((x) => x.id === data.id);
-  if (i >= 0) state.reviews[i] = data; else state.reviews.push(data);
-  save(); closeMasks(); schedule('view', renderView); toast('这封信收好啦', '💌');
+  const isNew = i < 0;
+  if (!isNew) state.reviews[i] = data; else state.reviews.push(data);
+  save(); closeMasks(); schedule('view', renderView);
+  if (isNew) { celebrate(18); toast(cheer(), '💌'); }
+  else toast('改好啦', '💌');
 });
 $('#formWish').addEventListener('submit', (ev) => {
   ev.preventDefault();
@@ -2943,6 +3047,15 @@ document.addEventListener('click', (e) => {
       toast(state.settings.theme === 'night' ? '晚安模式，注意眼睛休息~' : '早安模式回来啦', '🌙');
       break;
 
+    case 'goal-set': {
+      const f = $('#formTask').elements;
+      const on = el.dataset.goal === '1';
+      f.isGoal.value = el.dataset.goal;
+      $$('#goalRow button').forEach((b) => b.classList.toggle('on', b === el));
+      $('#goalBox').classList.toggle('hidden', !on);
+      if (on && !f.goalDue.value) f.goalDue.value = addDays(today(), 30);
+      break;
+    }
     case 'new-task': openTask(null, el.dataset.date); break;
     case 'edit-task': openTask(id); break;
     case 'del-task': delTask(id); break;
@@ -3223,278 +3336,6 @@ $('#pfFile').addEventListener('change', (e) => {
   img.src = url;
 });
 
-document.addEventListener('click', (e) => {
-  const el = e.target.closest('[data-act]'); if (!el) return;
-  const a = el.dataset.act, id = el.dataset.id;
-
-  if (a === 'mood') {
-    state.moods[ui.cur] = el.dataset.mood; save();
-    $('#moodPop').classList.remove('show');      /* 选完就收起浮条 */
-    schedule('today', patchToday); schedule('side', renderSide);
-    toast('心情记好啦', MOODS[el.dataset.mood]); return;
-  }
-
-  switch (a) {
-    /* 顶部卡的小图标 */
-    case 'hero-pop': {
-      const p = el.dataset.pop;
-      ui.heroPop = ui.heroPop === p ? null : p;
-      renderHeroPops(); return;
-    }
-    /* 换日期 */
-    case 'date-off': setCur(addDays(today(), +el.dataset.off)); return;
-    case 'date-set': setCur(el.dataset.date); return;
-    case 'cur-prev': setCur(addDays(ui.cur, -1)); return;
-    case 'cur-next': setCur(addDays(ui.cur, 1)); return;
-
-    /* 纪念日展示样式 */
-    case 'wish-view':
-      ui.wishView = el.dataset.view; state.settings.wishView = ui.wishView; saveUi();
-      schedule('view', renderView); return;
-    case 'wish-fold': {
-      const g = el.dataset.group;
-      ui.wishFold[g] = !ui.wishFold[g];
-      schedule('view', renderView); return;
-    }
-    case 'wish-open':
-      ui.wishOpen[id] = !ui.wishOpen[id];
-      schedule('view', renderView); return;
-    case 'wish-jump': {
-      const w = state.wishes.find((x) => x.id === id);
-      ui.view = 'calendar'; ui.heroPop = null;
-      if (w) { ui.sel = nextDate(w); ui.anchor = ui.sel; ui.cal = 'month'; ui.pick = ui.sel; }
-      ui.wishOpen[id] = true; ui.wishView = 'grid';
-      schedule('view', renderView); schedule('side', renderSide);
-      setTimeout(() => { const m = $('#memoZone'); if (m) m.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
-      return;
-    }
-    case 'memo-goto':
-      ui.view = 'calendar'; ui.heroPop = null;
-      schedule('view', renderView); schedule('side', renderSide);
-      setTimeout(() => { const m = $('#memoZone'); if (m) m.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
-      return;
-
-    case 'nav': haptic(6); goView(el.dataset.view); break;
-    case 'theme':
-      state.settings.theme = state.settings.theme === 'night' ? 'day' : 'night'; save();
-      document.documentElement.dataset.theme = state.settings.theme;
-      paintThemeColor(); haptic(10);
-      toast(state.settings.theme === 'night' ? '晚安模式，注意眼睛休息~' : '早安模式回来啦', '🌙');
-      break;
-
-    case 'new-task': openTask(null, el.dataset.date); break;
-    case 'edit-task': openTask(id); break;
-    case 'del-task': delTask(id); break;
-    case 'del-task-modal': {
-      const id0 = editing.task;
-      closeMasks();
-      setTimeout(() => delTask(id0), 180);
-      break;
-    }
-
-    case 'toggle': {
-      const t = state.tasks.find((x) => x.id === id); if (!t) return;
-      t.done = !t.done;
-      let gain = 0;
-      if (t.done) {
-        gain = dropsFor(t);
-        t.gain = gain;
-        state.garden.drops += gain;
-        state.garden.total += gain;
-      } else if (t.gain) {
-        state.garden.drops = Math.max(0, state.garden.drops - t.gain);
-        t.gain = 0;
-      }
-      save();
-      patchRow(id);                      // 只替换这一行
-      schedule('prog', patchProgress);   // 异步刷新进度
-      schedule('side', renderSide);      // 异步刷新侧边栏
-      schedule('teaser', patchTeaser);   // 首页花园速览
-      if (t.done) {
-        const r = el.getBoundingClientRect();
-        cheer(r.left + r.width / 2, r.top);
-        const fresh = checkBadges();
-        save();
-        toast(fresh.length ? `解锁徽章「${fresh[0].n}」${fresh[0].e}` : `${PRAISE[Math.floor(Math.random() * PRAISE.length)]} ＋${gain}💧`, fresh.length ? '' : '');
-      }
-      break;
-    }
-
-    /* ---------- 花园 ---------- */
-    case 'plot': {
-      const i = Number(el.dataset.i), g = state.garden, p = g.plots[i];
-      if (!p) {
-        const row = $('.seed-row');
-        if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        toast('挑一颗种子，种下去吧', '🌱'); return;
-      }
-      if (p.stage >= 2) {
-        const got = harvestPlot(i);
-        const fresh = checkBadges();
-        save();
-        schedule('view', renderView); schedule('side', renderSide);
-        cheer(window.innerWidth / 2, window.innerHeight / 2);
-        toast(fresh.length ? `解锁徽章「${fresh[0].n}」${fresh[0].e}` : `收下「${plantOf(got.kind).n}」啦，＋${got.gain}💧`, '🌸');
-        return;
-      }
-      const res = waterPlot(i, 1);
-      if (!res) return;
-      if (res.dry) { toast('露珠不够啦，去完成一件小事吧', '💧'); return; }
-      save();
-      patchPlot(i); patchGardenHud();
-      if (res.bloom) {
-        toast(`「${plantOf(p.k).n}」开花了！点它可以收下来`, '🌸');
-        const c = el.getBoundingClientRect();
-        cheer(c.left + c.width / 2, c.top);
-      }
-      schedule('side', renderSide);
-      return;
-    }
-    case 'sow': {
-      const kind = el.dataset.kind, def = plantOf(kind);
-      const g = state.garden;
-      const idx = g.plots.findIndex((x) => !x);
-      if (idx < 0 || idx >= plotCount()) { toast('没有空地啦，收一朵花就会空出来', '🪴'); return; }
-      if (g.drops < def.cost) { toast(`还差 ${def.cost - g.drops} 滴露珠才买得起`, '💧'); return; }
-      if (!sowPlot(idx, kind)) return;
-      const fresh = checkBadges();
-      save();
-      schedule('view', renderView);
-      toast(fresh.length ? `解锁徽章「${fresh[0].n}」${fresh[0].e}` : `种下「${def.n}」啦，记得浇它 🌱`, fresh.length ? '' : '');
-      return;
-    }
-    case 'water-all': {
-      const g = state.garden;
-      let used = 0, blooms = 0;
-      g.plots.forEach((p, i) => {
-        if (!p || p.stage >= 2 || g.drops <= 0) return;
-        const r = waterPlot(i, Math.min(3, g.drops));
-        if (r && r.used) used += r.used;
-        if (r && r.bloom) blooms++;
-      });
-      if (!used) { toast('没有需要浇水的小苗，或者露珠用完啦', '💧'); return; }
-      save();
-      schedule('view', renderView); schedule('side', renderSide);
-      toast(blooms ? `浇了 ${used} 滴，有 ${blooms} 朵开花啦 🌸` : `挨个浇了 ${used} 滴，它们都在长`, '💧');
-      return;
-    }
-    case 'garden-dex': {
-      const d = $('.dex-row');
-      if (d) d.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      return;
-    }
-    case 'quick-add': quickAdd(); break;
-
-    case 'cal': ui.cal = el.dataset.mode; schedule('view', renderView); break;
-    case 'sel': {
-      const d = el.dataset.date;
-      const same = ui.pick === d;
-      ui.sel = d; ui.anchor = d; ui.cur = d;
-      ui.pick = same ? null : d;      // 再点同一天就收起
-      schedule('view', renderView);
-      if (!same) setTimeout(() => { const z = $('#dayZone'); if (z) z.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 80);
-      break;
-    }
-    case 'day-close': ui.pick = null; schedule('view', renderView); break;
-    case 'prev': shift(-1); break;
-    case 'next': shift(1); break;
-    case 'today': ui.sel = today(); ui.anchor = ui.sel; ui.cur = ui.sel; ui.pick = ui.sel;
-      schedule('view', renderView); break;
-
-    case 'rtab': ui.reviewTab = el.dataset.tab; schedule('view', renderView); break;
-    case 'new-review': openReview(null, el.dataset.type, el.dataset.date); break;
-    case 'edit-review': openReview(id); break;
-    case 'del-review':
-      state.reviews = state.reviews.filter((x) => x.id !== id); save();
-      schedule('view', renderView); toast('删掉啦'); break;
-    case 'del-review-modal':
-      state.reviews = state.reviews.filter((x) => x.id !== editing.review); save(); closeMasks();
-      schedule('view', renderView); toast('删掉啦'); break;
-
-    case 'new-wish': openWish(null, el.dataset.date); break;
-    case 'edit-wish': openWish(id); break;
-    case 'del-wish':
-      state.wishes = state.wishes.filter((x) => x.id !== id); save();
-      schedule('view', renderView); schedule('side', renderSide); toast('删掉啦'); break;
-    case 'del-wish-modal':
-      state.wishes = state.wishes.filter((x) => x.id !== editing.wish); save(); closeMasks();
-      schedule('view', renderView); schedule('side', renderSide); toast('删掉啦'); break;
-
-    case 'close-task': case 'close-review': case 'close-wish':
-    case 'close-srev': case 'close-sbj':
-      closeBasketBox(); closeMasks(); ui.studyEdit = null; revTarget = null; break;
-    case 'bk-cancel': closeBasketBox(); break;
-
-    case 'sbj-open': ui.view = 'study'; ui.studySid = el.dataset.id;
-      schedule('view', renderView); schedule('slide', () => slideContent(1)); paintTabs(); break;
-    case 'sbj-back': ui.studySid = null;
-      schedule('view', renderView); schedule('slide', () => slideContent(-1)); break;
-    case 'sbj-new': openSubject(null); return;
-    case 'sbj-edit': e.stopPropagation(); openSubject(el.dataset.id); return;
-    case 'sbj-set-goal': {
-      const v = prompt('每天想学多少分钟？', String(ST().goal || 180));
-      if (v == null) return;
-      const n = Math.max(10, Math.min(960, Number(v) || 180));
-      ST().goal = n; save(); schedule('view', renderView);
-      toast(`每日目标设成 ${n} 分钟啦`, '🎯'); return;
-    }
-    case 'sy-range': ui.studyRange = el.dataset.range; schedule('view', renderView); break;
-    case 'sy-help': ui.dropHelp = !ui.dropHelp; schedule('view', renderView); break;
-    case 'sy-csv': exportSyCsv(); break;
-    case 'sy-md': exportSyMd(); break;
-    case 'sy-json': exportSyJson(); break;
-    case 'sy-ai': copyAI(); break;
-
-    case 'tm-mode': ui.studyMode = el.dataset.mode; patchTimer(); schedule('view', renderView); break;
-    case 'tm-plan': ui.studyPlan = Number(el.dataset.min); ui.studyMode = 'down';
-      patchTimer(); schedule('view', renderView); break;
-    case 'tm-start': tmStart(el.dataset.id); break;
-    case 'tm-pause': tmPause(); return;
-    case 'tm-resume': tmResume(el.dataset.id); return;
-    case 'tm-finish': tmFinish(false); return;
-    case 'tm-end': tmFinish(false, el.dataset.id); return;
-    case 'tm-drop': tmDrop(); return;
-    case 'tm-drop-id': tmDrop(el.dataset.id); return;
-
-    case 'rev-new': openRevOf(el.dataset.id); return;
-    case 'rev-edit': {
-      const v = ST().reviews.find((x) => x.id === el.dataset.id);
-      if (v) openRev(v.sid); return;
-    }
-    case 'del-srev-modal': delSrev(); return;
-
-    case 'export-md': exportMd(); break;
-    case 'open-profile': openProfile(); break;
-    case 'close-profile': closeMasks(); break;
-    case 'pf-upload': $('#pfFile').click(); break;
-    case 'pf-random': pfRandomFace(); break;
-    case 'pf-save': saveProfile(); break;
-    case 'pf-chpass': changePass(); break;
-    case 'guide-next': guideNext(); break;
-    case 'guide-prev': guidePrev(); break;
-    case 'guide-skip': closeGuide(true); break;
-    case 'guide-open': openGuide(0); break;
-    case 'srv-report': srvReport(el.dataset.range); break;
-    case 'backup': openBackup(); break;
-    case 'restore': doRestore(); break;
-    case 'close-backup': closeMasks(); break;
-    case 'bk-text': bkText(); break;
-    case 'bk-atts': bkAtts(); break;
-    case 'bk-all': bkAll(); break;
-    case 'print': doPrint(); break;
-    case 'clear':
-      if (confirm('真的要清空全部记录吗？清空后就找不回来啦~')) {
-        const s = state.settings;
-        state = seed(); state.tasks = []; state.reviews = []; state.wishes = [];
-        state.moods = {}; state.joys = {}; state.settings = s; save();
-        schedule('view', renderView); schedule('side', renderSide); toast('都清空啦，重新开始~');
-      }
-      break;
-    case 'reseed':
-      state = seed(); state.settings.sideW = state.settings.sideW || 250; save();
-      schedule('view', renderView); schedule('side', renderSide); toast('示例数据回来啦', '🌷'); break;
-  }
-});
 
 function quickAdd() {
   const i = $('#quickAdd'); if (!i) return;
@@ -3825,7 +3666,7 @@ function doPrint() {
    原则：① 跟手（位移 1:1 映射）② 松手吸附（距离或速度任一达标就翻页）
         ③ 到头有阻尼（橡皮筋）④ 竖滑永远优先给页面滚动
    ========================================================== */
-const VIEW_ORDER = ['today', 'calendar', 'review', 'study', 'garden'];
+const VIEW_ORDER = ['today', 'study', 'review', 'calendar', 'garden'];
 const isMobile = () => window.matchMedia('(max-width: 860px)').matches;
 const haptic = (ms = 8) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { } };
 const anyMaskOpen = () => !!document.querySelector('.mask.open');

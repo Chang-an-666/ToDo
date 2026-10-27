@@ -58,9 +58,9 @@
 
     <nav class="nav" id="nav">
       <button class="nav-item is-active" data-act="nav" data-view="today"><i>🏠</i><span>今天</span></button>
-      <button class="nav-item" data-act="nav" data-view="calendar"><i>📅</i><span>日历</span></button>
-      <button class="nav-item" data-act="nav" data-view="review"><i>💌</i><span>复盘</span></button>
       <button class="nav-item" data-act="nav" data-view="study"><i>📚</i><span>备考</span></button>
+      <button class="nav-item" data-act="nav" data-view="review"><i>💌</i><span>复盘</span></button>
+      <button class="nav-item" data-act="nav" data-view="calendar"><i>📅</i><span>日历</span></button>
       <button class="nav-item" data-act="nav" data-view="garden"><i>🌷</i><span>小花园</span></button>
     </nav>
 
@@ -76,7 +76,7 @@
       <button class="fn" data-act="guide-open"><i>🎓</i><span>新手引导</span></button>
       <button class="fn" data-act="open-profile"><i>👤</i><span>我的资料</span></button>
       <button class="fn danger" data-act="clear"><i>🧹</i><span>清空数据</span></button>
-      <div class="side-ver"><span id="storeInfo">本机</span><br><span id="appVer">v3.0.1</span></div>
+      <div class="side-ver"><span id="storeInfo">本机</span><br><span id="appVer">v3.0.2</span></div>
     </div>
   </aside>
 
@@ -163,6 +163,17 @@
           <button type="button" data-pri="low">🍃 有空再说</button>
         </div>
         <input type="hidden" name="priority" value="mid" /></div>
+      <div class="field"><span>要不要当成一个小目标</span>
+        <div class="goal-row" id="goalRow">
+          <button type="button" data-act="goal-set" data-goal="0" class="on">🍃 就做一次</button>
+          <button type="button" data-act="goal-set" data-goal="1">🎯 慢慢追的目标</button>
+        </div>
+        <div class="goal-box hidden" id="goalBox">
+          <label class="goal-due"><span>想在什么时候做到</span><input type="date" name="goalDue" /></label>
+          <div class="goal-hint">定成目标后，每天会看到还剩几天，复盘里也会自动带上它</div>
+        </div>
+        <input type="hidden" name="isGoal" value="0" />
+      </div>
       <div class="field"><span>多久做一次</span>
         <div class="rep-row" id="repRow"></div>
         <div class="rep-every hidden" id="repEveryBox">
@@ -216,12 +227,12 @@
           <button type="button" data-mood="down">🥺</button>
         </div>
         <input type="hidden" name="mood" value="happy" /></div>
-      <label class="field"><span>做得不错的三件小事</span>
-        <textarea name="good" rows="3" placeholder="1. 早起啦&#10;2. 完成了方案&#10;3. 给妈妈打了电话"></textarea></label>
-      <label class="field"><span>想对自己说的话</span>
-        <textarea name="words" rows="2" placeholder="今天有点累，但你已经很棒了，早点睡呀~"></textarea></label>
-      <label class="field"><span>接下来想先做的一件事</span>
-        <textarea name="next" rows="2" placeholder="明天先把最难的那件做完"></textarea></label>
+      <label class="field"><span>✨ 做得不错的地方 <em class="opt">想到几条写几条</em></span>
+        <textarea name="good" rows="2" placeholder="早起啦 / 把那件难的事做完了 / 给妈妈打了电话"></textarea></label>
+      <label class="field"><span>💬 想对自己说一句话</span>
+        <textarea name="words" rows="2" placeholder="今天有点累，但你已经很棒了，早点睡呀"></textarea></label>
+      <label class="field"><span>🌱 接下来先做哪一件 <em class="opt">可不填</em></span>
+        <textarea name="next" rows="1" placeholder="明天先把最难的那件做完"></textarea></label>
       <div class="modal-foot">
         <button type="button" class="soft-btn danger hidden" id="btnDelReview" data-act="del-review-modal">删除</button>
         <div class="spacer"></div>

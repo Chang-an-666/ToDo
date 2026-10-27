@@ -2112,3 +2112,88 @@ body.drawer-drag .scrim { display: block; }
   font-size: 9.5px; padding: 1px 5px; border-radius: 99px;
   background: var(--mint-s, #E8F7EE); color: #2E8B57; margin-left: 4px;
 }
+
+/* ==========================================================
+   复盘 2.0：周期卡 + 时间轴 + 小目标 + 撒花
+   ========================================================== */
+.rv-hero {
+  display: flex; align-items: center; gap: 14px; padding: 18px; border-radius: 22px;
+  margin-bottom: 14px; background: linear-gradient(150deg, #FFF3F7, #F1ECFF);
+  box-shadow: var(--shadow-s);
+}
+[data-theme="night"] .rv-hero { background: rgba(255, 255, 255, .06); }
+.rv-hero.is-done { background: linear-gradient(150deg, #EFF9F2, #F1ECFF); }
+[data-theme="night"] .rv-hero.is-done { background: rgba(255, 255, 255, .05); }
+.rv-hero-face { font-size: 32px; flex: none; animation: wave 2.6s ease-in-out infinite; }
+.rv-hero-main { flex: 1; min-width: 0; }
+.rv-hero-title { font-size: 15px; font-weight: 600; color: var(--ink); }
+.rv-hero-sub { font-size: 12px; color: var(--ink2); margin-top: 3px; }
+.rv-bar { margin-top: 9px; height: 6px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.rv-bar i {
+  display: block; height: 100%; border-radius: 99px;
+  background: linear-gradient(90deg, var(--pink), var(--lav)); transition: width .4s ease;
+}
+.rv-go { flex: none; white-space: nowrap; }
+
+.rv-goals { padding: 14px 16px; border-radius: 18px; background: var(--bg2); margin-bottom: 14px; }
+[data-theme="night"] .rv-goals { background: rgba(255, 255, 255, .05); }
+.rv-goals-h { font-size: 12.5px; color: var(--ink2); margin-bottom: 6px; }
+.rv-goal {
+  display: flex; justify-content: space-between; gap: 10px; align-items: center;
+  padding: 7px 0; font-size: 13px; border-top: 1px dashed var(--line);
+}
+.rv-goal:first-of-type { border-top: 0; }
+.rv-goal-t { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rv-goal.ok .rv-goal-t { text-decoration: line-through; color: var(--ink2); }
+.rv-goal-s { font-size: 11.5px; color: var(--ink2); flex: none; }
+
+/* 时间轴 */
+.letter { display: flex; gap: 10px; background: none; box-shadow: none; padding: 0; margin-bottom: 12px; position: relative; }
+.letter::before {
+  content: ''; position: absolute; left: 17px; top: 38px; bottom: -14px;
+  width: 2px; background: var(--line); border-radius: 2px;
+}
+.letter:last-child::before { display: none; }
+.letter-dot {
+  width: 36px; height: 36px; border-radius: 50%; background: var(--card); flex: none; z-index: 1;
+  display: grid; place-items: center; font-size: 18px; box-shadow: var(--shadow-s);
+}
+.letter-card { flex: 1; min-width: 0; border-radius: 18px; padding: 14px 16px; background: linear-gradient(160deg, var(--lav-s), var(--sky-s)); }
+.letter-card .letter-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.letter-card .when { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+.letter-card .sub { font-size: 11.5px; color: var(--ink2); }
+.letter-card .letter-body { font-size: 13.5px; white-space: normal; }
+.letter-card .letter-body p { margin: 0 0 6px; display: flex; gap: 6px; align-items: flex-start; }
+.letter-card .letter-body .lb { display: inline; font-size: 13px; margin: 0; flex: none; }
+.letter-card .next-line { margin-top: 8px; }
+.letter-done { margin-top: 8px; font-size: 11.5px; color: var(--ink2); line-height: 1.6; }
+
+/* 撒花 */
+.confetti { position: fixed; inset: 0; pointer-events: none; z-index: 950; overflow: hidden; }
+.confetti i { position: absolute; top: -30px; animation: confFall 2s ease-in forwards; }
+@keyframes confFall {
+  to { transform: translateY(108vh) rotate(240deg); opacity: 0; }
+}
+
+/* 阶段性目标 */
+.goal-row { display: flex; gap: 8px; }
+.goal-row button {
+  flex: 1; border: 1.5px solid var(--line); background: var(--bg2); border-radius: 12px;
+  padding: 9px 6px; font-size: 12.5px; cursor: pointer; font-family: inherit; color: var(--ink2); transition: .18s;
+}
+.goal-row button.on { border-color: var(--pink); background: var(--pink-s); color: var(--pink); font-weight: 600; }
+.goal-box { margin-top: 10px; background: var(--bg2); border-radius: 14px; padding: 12px; }
+[data-theme="night"] .goal-box { background: rgba(255, 255, 255, .05); }
+.goal-due { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--ink2); }
+.goal-due input {
+  border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px;
+  background: var(--card); color: var(--ink); font-family: inherit;
+}
+.goal-hint { margin-top: 8px; font-size: 11.5px; color: var(--ink2); line-height: 1.6; }
+.chip.goal { background: #FFF4D6; color: #A9700A; }
+[data-theme="night"] .chip.goal { background: rgba(255, 200, 80, .16); color: #F0C060; }
+.opt { font-style: normal; font-size: 11px; font-weight: 400; color: var(--ink2); margin-left: 6px; }
+.auto-goals { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+.auto-goal { font-size: 11.5px; padding: 3px 9px; border-radius: 99px; background: #FFF4D6; color: #8A5B00; }
+.auto-goal.ok { background: var(--mint-s, #E8F7EE); color: #2E8B57; text-decoration: line-through; }
+[data-theme="night"] .auto-goal { background: rgba(255, 200, 80, .16); color: #F0C060; }
