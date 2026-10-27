@@ -260,7 +260,7 @@ const saveUi = () => save();
    本地模式：没有服务器，数据只存在这台设备
    ========================================================== */
 const AUTH = { user: null, ok: false, offline: true };
-const APP_VERSION = '3.0.2';
+const APP_VERSION = '3.0.4';
 
 /* 头像 / 昵称 / 签名都以本地 state.me 为准 */
 function paintProfile() {
@@ -294,6 +294,30 @@ function bootLocal() {
 function paintFootVersion() {
   const el = $('#appVer');
   if (el) el.textContent = 'v' + APP_VERSION;
+}
+
+/* ---------- 更新：新版接管时提示 / 手动强制刷新 ---------- */
+function xrNewVersion() {
+  toast('有新版本啦，写完这页后下拉刷新一下就能用上', '✨', 5200);
+}
+window.xrNewVersion = xrNewVersion;
+
+async function forceUpdate() {
+  toast('正在检查更新…', '🔄', 2000);
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister().catch(() => { })));
+    }
+    if (typeof caches !== 'undefined') {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k).catch(() => { })));
+    }
+  } catch (e) { }
+  /* 带时间戳绕开浏览器缓存；数据都在 localStorage，刷新不会丢 */
+  const u = new URL(location.href);
+  u.searchParams.set('v', String(Date.now()));
+  location.replace(u.toString());
 }
 /* 学习报告：用本地数据生成 */
 async function srvReport(range) {
@@ -421,13 +445,13 @@ function schedule(key, fn) {
   setTimeout(flush, 120);
 }
 
-function toast(msg, face) {
+function toast(msg, face, ms) {
   const el = $('#toast');
   el.classList.remove('has-act');
   el.textContent = (face ? face + ' ' : '') + msg;
   el.style.whiteSpace = String(msg).includes('\n') ? 'pre-line' : '';
   el.classList.add('show');
-  clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 3200);
+  clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), ms || 3200);
 }
 function cheer(x, y, big) {
   const sky = $('#sky');
@@ -3250,6 +3274,7 @@ document.addEventListener('click', (e) => {
     case 'guide-open': openGuide(0); break;
     case 'srv-report': srvReport(el.dataset.range); break;
     case 'backup': openBackup(); break;
+    case 'force-update': forceUpdate(); break;
     case 'restore': doRestore(); break;
     case 'close-backup': closeMasks(); break;
     case 'bk-text': bkText(); break;

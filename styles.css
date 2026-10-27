@@ -1515,7 +1515,8 @@ textarea { resize: vertical; }
 
 /* ---------- 新手引导 ---------- */
 .guide {
-  position: fixed; inset: 0; z-index: 650; display: grid; place-items: center; padding: 20px;
+  position: fixed; inset: 0; z-index: 650;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
   background: color-mix(in srgb, #2E2436 52%, transparent);
   animation: gdIn .3s ease both;
 }
@@ -1523,10 +1524,14 @@ textarea { resize: vertical; }
 @keyframes gdIn { from { opacity: 0; } }
 .gd-card {
   position: relative; width: 100%; max-width: 420px; background: var(--card);
-  border-radius: 26px; padding: 26px 26px 18px; text-align: center;
+  border-radius: 26px; padding: 26px 22px 18px; text-align: center;
   box-shadow: 0 30px 70px rgba(70, 40, 60, .32);
   animation: gdCardIn .42s cubic-bezier(.34, 1.4, .64, 1) both;
+  margin: 0 auto;
 }
+/* 窄屏：动画元素不许把卡片撑宽 */
+.gd-stage, .gstep { max-width: 100%; }
+.g1-box { max-width: 100%; overflow: hidden; }
 .gd-skip {
   position: absolute; right: 14px; top: 12px; border: 0; background: none; cursor: pointer;
   font-size: 12px; color: var(--ink2); padding: 6px 8px; border-radius: 10px;

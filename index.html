@@ -75,8 +75,9 @@
       <button class="fn" data-act="restore"><i>📥</i><span>导入备份</span></button>
       <button class="fn" data-act="guide-open"><i>🎓</i><span>新手引导</span></button>
       <button class="fn" data-act="open-profile"><i>👤</i><span>我的资料</span></button>
+      <button class="fn" data-act="force-update"><i>🔄</i><span>检查更新</span></button>
       <button class="fn danger" data-act="clear"><i>🧹</i><span>清空数据</span></button>
-      <div class="side-ver"><span id="storeInfo">本机</span><br><span id="appVer">v3.0.2</span></div>
+      <div class="side-ver"><span id="storeInfo">本机</span><br><span id="appVer">v3.0.4</span></div>
     </div>
   </aside>
 
@@ -119,9 +120,9 @@
 <!-- ============ 手机端底部标签栏（iPhone 习惯） ============ -->
 <nav class="tabbar" id="tabbar" aria-label="主导航">
   <button class="tb-item is-active" data-act="nav" data-view="today"><i>🏠</i><span>今天</span></button>
-  <button class="tb-item" data-act="nav" data-view="calendar"><i>📅</i><span>日历</span></button>
-  <button class="tb-item" data-act="nav" data-view="review"><i>💌</i><span>复盘</span></button>
   <button class="tb-item" data-act="nav" data-view="study"><i>📚</i><span>备考</span></button>
+  <button class="tb-item" data-act="nav" data-view="review"><i>💌</i><span>复盘</span></button>
+  <button class="tb-item" data-act="nav" data-view="calendar"><i>📅</i><span>日历</span></button>
   <button class="tb-item" data-act="nav" data-view="garden"><i>🌷</i><span>花园</span></button>
 </nav>
 
@@ -466,9 +467,44 @@
 <script src="js/migrate.js"></script>
 <script src="app.js"></script>
 <script>
-if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => { }));
-}
+/* ---------- 自动更新：主动查新版 + 接管后自动刷新 ---------- */
+(function () {
+  if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
+  var hadController = !!navigator.serviceWorker.controller;
+  var reloading = false;
+
+  // 新 SW 接管后刷新一次（15 秒内不重复刷，避免循环）
+  navigator.serviceWorker.addEventListener('controllerchange', function () {
+    if (reloading) return;
+    var last = Number(sessionStorage.getItem('xr.reloadAt') || 0);
+    if (Date.now() - last < 15000) return;
+    // 首次访问时装上 SW 也会触发，此时不需要刷新
+    if (!hadController) { hadController = true; return; }
+    // 正在写东西（表单/弹层）就先提示，别把输入冲掉
+    var el = document.activeElement;
+    var typing = el && /INPUT|TEXTAREA/.test(el.tagName);
+    var modal = document.querySelector('.mask.show');
+    if (typing || modal) {
+      if (window.xrNewVersion) window.xrNewVersion();
+      return;
+    }
+    reloading = true;
+    sessionStorage.setItem('xr.reloadAt', String(Date.now()));
+    location.reload();
+  });
+
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (reg) {
+      window.__xrSW = reg;
+      // 每次打开都主动拉一次 sw.js（Cloudflare 上它是 no-cache）
+      reg.update().catch(function () { });
+      // 从后台切回前台也检查一次（iOS 主屏 App 尤其需要）
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) reg.update().catch(function () { });
+      });
+    }).catch(function () { });
+  });
+})();
 </script>
 </body>
 </html>

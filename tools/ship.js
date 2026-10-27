@@ -8,7 +8,7 @@
  *
  * 环境变量
  *   PAGES_PROJECT   Pages 项目名（默认 xiaorizi，全局唯一，被占就换一个）
- *   PAGES_BRANCH    生产分支（默认 main）
+ *   PAGES_BRANCH    生产分支（默认自动读项目的 production_branch，读不到用 master）
  *   CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID   无人值守时用
  */
 'use strict';
@@ -20,7 +20,7 @@ const { spawnSync } = require('child_process');
 const ROOT = path.join(__dirname, '..');
 const OUT = path.join(ROOT, '.publish');
 const PROJECT = process.env.PAGES_PROJECT || 'xiaorizi';
-const BRANCH = process.env.PAGES_BRANCH || 'main';
+let BRANCH = process.env.PAGES_BRANCH || '';
 const DRY = process.argv.includes('--dry') || process.argv.includes('--pack');
 
 /* 只发布这些，测试、README、.git 一律不上传 */
@@ -113,7 +113,26 @@ function runWrangler(args) {
   return spawnSync(isWin ? 'npx.cmd' : 'npx', ['--yes', 'wrangler@latest', ...args], Object.assign({}, opt, { shell: isWin }));
 }
 
-function main() {
+/* 问 Cloudflare“这个项目的生产分支叫什么”，避免推成 preview */
+async function resolveBranch() {
+  if (BRANCH) return BRANCH;
+  const token = process.env.CLOUDFLARE_API_TOKEN;
+  const acc = process.env.CLOUDFLARE_ACCOUNT_ID;
+  if (token && acc && typeof fetch === 'function') {
+    try {
+      const r = await fetch(
+        `https://api.cloudflare.com/client/v4/accounts/${acc}/pages/projects/${PROJECT}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const j = await r.json();
+      const b = j && j.result && j.result.production_branch;
+      if (b) return b;
+    } catch (e) { }
+  }
+  return 'master';
+}
+
+async function main() {
   console.log('\n  小日子 · 发布到 Cloudflare Pages');
   console.log('  ' + '-'.repeat(42));
 
@@ -128,16 +147,19 @@ function main() {
     return;
   }
 
+  BRANCH = await resolveBranch();
+
   const hasToken = !!process.env.CLOUDFLARE_API_TOKEN;
   console.log(`\n  项目：${PROJECT}`);
   console.log(`  分支：${BRANCH}（production）`);
   console.log(`  认证：${hasToken ? '使用 CLOUDFLARE_API_TOKEN' : '使用本机 wrangler 登录态'}`);
   console.log('\n  正在上传…\n');
 
+  /* 分支必须和生产分支一致，否则会被当成 preview，生产域名不更新 */
   const r = runWrangler([
     'pages', 'deploy', '.publish',
-    '--project-name', PROJECT,
-    '--branch', BRANCH,
+    `--project-name=${PROJECT}`,
+    `--branch=${BRANCH}`,
     '--commit-dirty=true',
   ]);
 
@@ -150,11 +172,31 @@ function main() {
     process.exit(r.status || 1);
   }
 
+  await verifyProd();
+
   const url = process.env.PAGES_URL || `https://${PROJECT}.pages.dev`;
   console.log('\n  ' + '-'.repeat(42));
   console.log(`  发布完成 · ${stamp()}`);
   console.log(`  网址（永远不变）：${url}`);
   console.log('  手机上：Safari 打开 → 分享 → 添加到主屏幕\n');
+}
+
+/* 确认这次真的进了 production，而不是 preview */
+async function verifyProd() {
+  const token = process.env.CLOUDFLARE_API_TOKEN;
+  const acc = process.env.CLOUDFLARE_ACCOUNT_ID;
+  if (!token || !acc || typeof fetch !== 'function') return;
+  try {
+    const r = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${acc}/pages/projects/${PROJECT}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    const j = await r.json();
+    const d = (j && j.result && j.result.latest_deployment) || {};
+    const env = d.environment;
+    if (env === 'production') console.log('\n  ✓ 已确认是 production 部署（正式域名已更新）');
+    else console.log(`\n  ⚠️ 这次是 ${env || '未知'} 部署，正式域名不会更新。生产分支应为 ${BRANCH}`);
+  } catch (e) { }
 }
 
 main();
