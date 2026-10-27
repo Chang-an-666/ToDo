@@ -9,13 +9,18 @@
 
 | 方式 | 步骤 |
 | --- | --- |
-| 在线（推荐） | 打开 `https://<项目名>.pages.dev/` |
+| 在线（推荐） | **https://xiaorizi-362.pages.dev/** |
 | 手机上 | Safari 打开上面的地址 → 分享 → **添加到主屏幕**（全屏、有图标） |
 | 本地 | 双击 `index.html`（部分功能受限，见下） |
 
 ## 部署到 Cloudflare Pages
 
 代码放 GitHub，站点放 Cloudflare Pages。**网址固定不变，改代码只换内容。**
+
+当前线上：
+- 站点 **https://xiaorizi-362.pages.dev/**
+- 项目名 `xiaorizi`（`xiaorizi.pages.dev` 被别人占了，所以公开子域带 `-362` 后缀）
+- 代码仓库 https://github.com/Chang-an-666/ToDo
 
 ### 方式 A：后台连 GitHub（推荐，零命令）
 
@@ -44,8 +49,16 @@ npx wrangler pages project create xiaorizi
 ```
 
 - `npm run pack` 只打包到 `.publish`，不发布
+- 项目名或子域对不上时：`PAGES_PROJECT=xiaorizi PAGES_URL=https://xiaorizi-362.pages.dev npm run ship`
+- 无人值守（CI）：
+
+```bash
+export CLOUDFLARE_API_TOKEN=...      # 只需 Account · Cloudflare Pages · Edit 权限
+export CLOUDFLARE_ACCOUNT_ID=...
+export PAGES_URL=https://xiaorizi-362.pages.dev
+npm run ship
+```
 - 项目名被占就换：`PAGES_PROJECT=xiaorizi-changan npm run ship`
-- 无人值守（CI）用 `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`
 
 ### 为什么网址不会变
 
