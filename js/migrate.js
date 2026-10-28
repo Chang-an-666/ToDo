@@ -41,6 +41,18 @@
       state.schema = 4;
     }
 
+    /* 兜底：手动改过的 / 别处导入的数据可能缺字段，别让一条缺字段把整页渲染炸掉 */
+    for (const t of state.tasks || []) {
+      if (!t.priority || !['high', 'mid', 'low'].includes(t.priority)) t.priority = 'mid';
+      if (typeof t.title !== 'string') t.title = '';
+      if (!t.date) t.date = new Date().toISOString().slice(0, 10);
+      if (t.done === undefined) t.done = false;
+    }
+    for (const r of state.reviews || []) {
+      if (typeof r.text !== 'string') r.text = [r.good, r.words, r.next].filter(Boolean).join('\n');
+      if (!r.mood) r.mood = 'happy';
+    }
+
     return state;
   }
 

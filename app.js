@@ -4473,6 +4473,8 @@ function paintThemeColor() {
 
 /* ---------- 启动 ---------- */
 state = load();
+/* 先迁移再补默认值，最后才渲染：反过来的话第一帧可能拿到缺字段的老数据 */
+try { state = Migrate.run(state); } catch (e) { console.warn('迁移失败', e); }
 state.me = state.me || { name: '小樱', face: '🌸' };
 state.moods = state.moods || {};
 state.joys = state.joys || {};

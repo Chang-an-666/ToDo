@@ -179,6 +179,14 @@ function load(file, win) {
     eq('旧字段保留', v3.reviews[0].good, '早起了');
     const v4 = mw.Migrate.run({ schema: 4, tasks: [], reviews: [{ id: 'r', date: '2026-10-25', text: '已经写好的' }] });
     eq('已迁移的不动', v4.reviews[0].text, '已经写好的');
+    /* 缺字段的数据不能把页面渲染炸掉 */
+    const dirty = mw.Migrate.run({ schema: 4, tasks: [{ id: 'a', title: '没写优先级' }, { id: 'b', priority: '乱写', title: 'x', date: '2026-01-01' }], reviews: [{ id: 'r' }] });
+    eq('缺优先级补 mid', dirty.tasks[0].priority, 'mid');
+    eq('乱写的优先级也改回 mid', dirty.tasks[1].priority, 'mid');
+    eq('缺日期补今天', /^\d{4}-\d{2}-\d{2}$/.test(dirty.tasks[0].date), true);
+    eq('缺 done 补 false', dirty.tasks[0].done, false);
+    eq('复盘缺 text 补空串', dirty.reviews[0].text, '');
+    eq('复盘缺 mood 补 happy', dirty.reviews[0].mood, 'happy');
   }
 
   console.log('\n合计 ' + (pass + fail) + ' 项 · 通过 ' + pass + ' · 失败 ' + fail + '\n');
