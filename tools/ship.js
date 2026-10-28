@@ -165,7 +165,10 @@ async function main() {
 
   if (r.status !== 0) {
     console.error('\n  发布失败。常见原因：');
-    console.error('   · 还没登录：先跑一次  npx wrangler login');
+    console.error('   · 非交互环境（脚本 / 自动化里跑）：必须先设 CLOUDFLARE_API_TOKEN');
+    console.error('       export CLOUDFLARE_API_TOKEN=...     # 权限只要 Pages: Edit');
+    console.error('       export CLOUDFLARE_ACCOUNT_ID=7b570ade4f442204fb251b3a8bfef386');
+    console.error('   · 手动在自己终端里跑：先 npx wrangler login 一次，之后都能直接用');
     console.error(`   · 项目名 ${PROJECT} 已被别人占用：换一个，PAGES_PROJECT=别的名字 npm run ship`);
     console.error('   · 首次需要先建项目：npx wrangler pages project create ' + PROJECT);
     console.error('');
