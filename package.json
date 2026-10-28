@@ -1,6 +1,6 @@
 {
   "name": "xiaorizi",
-  "version": "3.0.4",
+  "version": "3.1.0",
   "private": true,
   "description": "小日子 · 本地优先的计划本（待办 / 复盘 / 备考 / 花园）",
   "scripts": {

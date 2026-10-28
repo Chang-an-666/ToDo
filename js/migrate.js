@@ -4,7 +4,7 @@
    ========================================================== */
 (function (global) {
   'use strict';
-  const SCHEMA = 3;
+  const SCHEMA = 4;
 
   function run(state) {
     if (!state || typeof state !== 'object') return state;
@@ -29,6 +29,16 @@
         }
       }
       state.schema = 3;
+    }
+
+    /* v3 → v4：复盘从三个字段合并成一段自由文字（旧字段保留，不删） */
+    if (state.schema < 4) {
+      for (const r of state.reviews || []) {
+        if (typeof r.text !== 'string') {
+          r.text = [r.good, r.words, r.next].filter(Boolean).join('\n');
+        }
+      }
+      state.schema = 4;
     }
 
     return state;

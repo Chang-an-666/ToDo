@@ -17,6 +17,7 @@ const monthEnd = (s) => { const d = parse(s); return fmt(new Date(d.getFullYear(
 const CN = ['一', '二', '三', '四', '五', '六', '日'];
 const monthText = (s) => { const d = parse(s); return `${d.getFullYear()} 年 ${d.getMonth() + 1} 月`; };
 const dayText = (s) => { const d = parse(s); return `${d.getMonth() + 1} 月 ${d.getDate()} 日 · 周${CN[dow(s)]}`; };
+const cnDay = (s) => { const d = parse(s); return `${d.getMonth() + 1} 月 ${d.getDate()} 日`; };
 const uid = () => Math.random().toString(36).slice(2, 9);
 
 /* ---------- 常量 ---------- */
@@ -260,7 +261,7 @@ const saveUi = () => save();
    本地模式：没有服务器，数据只存在这台设备
    ========================================================== */
 const AUTH = { user: null, ok: false, offline: true };
-const APP_VERSION = '3.0.4';
+const APP_VERSION = '3.1.0';
 
 /* 头像 / 昵称 / 签名都以本地 state.me 为准 */
 function paintProfile() {
@@ -2391,17 +2392,22 @@ function rvPeriod(tab) {
   return { a: t, b: t, label: dayText(t) };
 }
 
+/* 复盘的文字：新数据读 text，老数据把三段拼起来 */
+function rvText(r) {
+  if (r && typeof r.text === 'string' && r.text.trim()) return r.text;
+  if (!r) return '';
+  return [r.good, r.words, r.next].filter(Boolean).join('\n');
+}
+
+/* 一个页面上就三样东西：切换周期的胶囊、一个「写」的按钮、以前写过的几篇 */
 function viewReview() {
   const cur = ui.reviewTab || 'day';
   const pd = rvPeriod(cur);
-  const all = tasksIn(pd.a, pd.b), dn = all.filter((x) => x.done);
-  const pct = all.length ? Math.round(dn.length / all.length * 100) : 0;
   const isStage = cur === 'stage';
 
   /* 这个周期是否已经写过 */
   const written = state.reviews.find((r) => r.type === cur
     && (isStage ? true : (r.date >= pd.a && r.date <= pd.b)));
-  const goals = state.tasks.filter((t) => t.goal && t.date <= pd.b && (!t.goal.due || t.goal.due >= pd.a));
   const list = state.reviews.filter((r) => r.type === cur)
     .sort((a, b) => (a.date < b.date ? 1 : -1));
 
@@ -2411,60 +2417,34 @@ function viewReview() {
       ${RV_TABS.map(([k, n, e]) => `<button class="pill ${cur === k ? 'on' : ''}" data-act="rtab" data-tab="${k}">${e} ${n}</button>`).join('')}
     </div>
 
-    <section class="rv-hero ${written ? 'is-done' : ''}">
-      <div class="rv-hero-face">${written ? '💌' : isStage ? '🎯' : '✍️'}</div>
-      <div class="rv-hero-main">
-        <div class="rv-hero-title">${written ? `${pd.label} 已经写过啦` : `记几句${RV_TABS.find((x) => x[0] === cur)[1]}的总结`}</div>
-        <div class="rv-hero-sub">${isStage ? '挑一段时间，回头看看走过的路' : `${pd.label} · ${all.length ? `完成 ${dn.length}/${all.length} 件` : '还没有记小事'}`}</div>
-        ${isStage ? '' : `<div class="rv-bar"><i style="width:${pct}%"></i></div>`}
-      </div>
-      <button class="soft-btn primary rv-go" data-act="${written ? 'edit-review' : 'new-review'}"
-        ${written ? `data-id="${written.id}"` : `data-type="${cur}" data-date="${dateFor}"`}>
-        ${written ? '看看 / 改改' : '开始写'}
-      </button>
-    </section>
-
-    ${goals.length ? `<section class="rv-goals">
-      <div class="rv-goals-h">🎯 这段时间在追的小目标</div>
-      ${goals.slice(0, 5).map((t) => `<div class="rv-goal ${t.done ? 'ok' : ''}">
-        <span class="rv-goal-t">${esc(t.title)}</span>
-        <span class="rv-goal-s">${t.done ? '做到啦 🎉' : goalLeft(t.goal.due)}</span>
-      </div>`).join('')}
-    </section>` : ''}
+    <button class="rv-write" data-act="${written ? 'edit-review' : 'new-review'}"
+      ${written ? `data-id="${written.id}"` : `data-type="${cur}" data-date="${dateFor}"`}>
+      <span>${written ? '💌' : '✍️'}</span>
+      <span class="rv-write-t">${written ? '已经写过了，再看看' : `写${RV_TABS.find((x) => x[0] === cur)[1]}的复盘`}</span>
+    </button>
 
     ${list.length ? `<div class="rv-list">${list.map(letterCard).join('')}</div>`
-      : `<div class="card"><div class="empty">
+      : `<div class="empty soft">
           <span class="face">💌</span>
-          ${isStage ? '还没有阶段复盘，挑一段值得记住的日子写写看' : '还没写过' + RV_TABS.find((x) => x[0] === cur)[1] + '的复盘'}
-        </div></div>`}`;
+          ${isStage ? '还没有阶段复盘' : '还没写过' + RV_TABS.find((x) => x[0] === cur)[1] + '的复盘'}
+        </div>`}`;
 }
 
 function letterCard(r) {
   const range = r.type === 'day' ? dayText(r.date)
-    : r.type === 'week' ? `${r.date.slice(5)} - ${(r.endDate || r.date).slice(5)}`
-      : r.type === 'month' ? monthText(r.date) : `${r.date.slice(5)} - ${(r.endDate || '进行中').slice(5)}`;
+    : r.type === 'week' ? `${r.date.slice(5)} - ${(r.endDate || addDays(weekStart(r.date), 6)).slice(5)}`
+      : r.type === 'month' ? monthText(r.date) : `${cnDay(r.date)} - ${r.endDate ? cnDay(r.endDate) : '现在'}`;
   const { a, b } = reviewRange(r);
-  const all = tasksIn(a, b), dn = all.filter((x) => x.done);
-  return `<div class="letter">
-    <div class="letter-dot">${MOODS[r.mood] || '😊'}</div>
-    <div class="letter-card">
-      <div class="letter-top">
-        <div>
-          <div class="when">${range}</div>
-          <div class="sub">${dn.length ? `完成 ${dn.length} 件小事` : '这段时间没记小事'} · ${typeName(r.type)}</div>
-        </div>
-        <div class="letter-act">
-          <button class="ico-btn" data-act="edit-review" data-id="${r.id}">✏️</button>
-          <button class="ico-btn" data-act="del-review" data-id="${r.id}">🗑️</button>
-        </div>
-      </div>
-      <div class="letter-body">
-        ${r.good ? `<p><span class="lb">✨</span>${esc(r.good).replace(/\n/g, '<br>')}</p>` : ''}
-        ${r.words ? `<p><span class="lb">💬</span>${esc(r.words).replace(/\n/g, '<br>')}</p>` : ''}
-      </div>
-      ${r.next ? `<div class="next-line">🌱 接下来：${esc(r.next)}</div>` : ''}
-      ${dn.length ? `<div class="letter-done">做到的小事：${dn.slice(0, 4).map((x) => esc(x.title)).join('、')}${dn.length > 4 ? ` 等 ${dn.length} 件` : ''}</div>` : ''}
+  const dn = tasksIn(a, b).filter((x) => x.done);
+  const txt = rvText(r);
+  return `<div class="letter" data-act="edit-review" data-id="${r.id}">
+    <div class="letter-top">
+      <span class="letter-when">${range}</span>
+      <span class="letter-type">${typeName(r.type)}</span>
+      <button class="ico-btn" data-act="del-review" data-id="${r.id}" title="删掉这篇">🗑️</button>
     </div>
+    <div class="letter-text">${txt ? esc(txt).replace(/\n/g, '<br>') : '<span class="dim">（这一篇没写内容）</span>'}</div>
+    ${dn.length ? `<div class="letter-foot">这段时间做到了 ${dn.length} 件小事</div>` : ''}
   </div>`;
 }
 
@@ -2795,26 +2775,49 @@ function delBasket(k) {
   schedule('view', renderView); schedule('side', renderSide);
   toast(used ? `篮子收起来啦，里面 ${used} 件搬去了「生活」` : '篮子收起来啦', '🧺');
 }
+/* 阶段复盘从哪天算起：接着上一篇结束的第二天，没有就从最早的小事开始 */
+function stageRange() {
+  const t = today();
+  const prev = state.reviews.filter((r) => r.type === 'stage' && r.endDate)
+    .sort((a, b) => (a.endDate < b.endDate ? 1 : -1))[0];
+  let a = prev ? addDays(prev.endDate, 1) : '';
+  if (!a) {
+    const ds = state.tasks.map((x) => x.date).sort();
+    a = ds.length ? ds[0] : t;
+  }
+  if (a > t) a = t;
+  return { a, b: t };
+}
+
 function openReview(id, type, date) {
   const r = id ? state.reviews.find((x) => x.id === id) : null;
   editing.review = id || null;
-  $('#reviewTitle').textContent = r ? '改改这封信' : '给自己的一封信';
+  $('#reviewTitle').textContent = r ? '改一改这篇' : '写几句';
   $('#btnDelReview').classList.toggle('hidden', !r);
   const f = $('#formReview'); f.reset();
   const e = f.elements;
   e.id.value = r ? r.id : '';
   e.type.value = r ? r.type : (type || 'day');
-  e.date.value = r ? r.date : (date || today());
-  e.endDate.value = r ? r.endDate || '' : '';
-  e.good.value = r ? r.good || '' : '';
-  e.words.value = r ? r.words || '' : '';
-  e.next.value = r ? r.next || '' : '';
-  e.mood.value = r ? r.mood : (state.moods[today()] || 'happy');
-  $$('#reviewMood button').forEach((b) => b.classList.toggle('on', b.dataset.mood === e.mood.value));
-  $('#endField').classList.toggle('hidden', e.type.value !== 'stage');
+  if (r) {
+    e.date.value = r.date;
+    e.endDate.value = r.endDate || '';
+  } else if (e.type.value === 'stage') {
+    const s = stageRange();
+    e.date.value = s.a;
+    e.endDate.value = s.b;
+  } else {
+    e.date.value = date || today();
+    e.endDate.value = '';
+  }
+  e.text.value = rvText(r);
+  e.mood.value = r ? (r.mood || 'happy') : (state.moods[today()] || 'happy');
   updateAuto();
   openMask('#maskReview');
+  /* 打开就能直接写：手机上少点一次 */
+  setTimeout(() => { try { e.text.focus({ preventScroll: true }); } catch (err) { } }, 260);
 }
+
+/* 只在上面轻轻说一句「这是哪段时间」，不再堆统计和框框 */
 function updateAuto() {
   const e = $('#formReview').elements;
   const type = e.type.value, d = e.date.value || today();
@@ -2823,15 +2826,10 @@ function updateAuto() {
   else if (type === 'month') { a = monthStart(d); b = monthEnd(d); }
   else if (type === 'stage') { b = e.endDate.value || today(); }
   if (b < a) b = a;
-  const all = tasksIn(a, b), dn = all.filter((x) => x.done);
-  const goals = state.tasks.filter((t) => t.goal && t.date <= b && (!t.goal.due || t.goal.due >= a));
-  const gHtml = goals.length
-    ? `<div class="auto-goals">${goals.slice(0, 4).map((t) => `<span class="auto-goal ${t.done ? 'ok' : ''}">`
-      + `🎯 ${esc(t.title)}${t.done ? ' ✓' : (t.goal.due ? ` · ${goalLeft(t.goal.due)}` : '')}</span>`).join('')}</div>`
-    : '';
-  $('#reviewAuto').innerHTML = `<b>这段时间（${a} ~ ${b}）</b>一共 ${all.length} 件小事，已经完成 ${dn.length} 件 🌸`
-    + (dn.length ? `<br>${dn.slice(0, 5).map((x) => esc(x.title)).join('、')}${dn.length > 5 ? ' …' : ''}` : '')
-    + gHtml;
+  const name = RV_TABS.find((x) => x[0] === type);
+  const span = a === b ? (type === 'month' ? monthText(a) : dayText(a)) : `${cnDay(a)} - ${cnDay(b)}`;
+  const box = $('#reviewWhen');
+  if (box) box.textContent = `${span}　·　${name ? name[1] : '复盘'}`;
 }
 function openWish(id, date) {
   const w = id ? state.wishes.find((x) => x.id === id) : null;
@@ -2931,10 +2929,14 @@ $('#srevRate').addEventListener('click', (ev) => {
 $('#formReview').addEventListener('submit', (ev) => {
   ev.preventDefault();
   const e = ev.target.elements;
+  const text = e.text.value.trim();
+  if (!text) { toast('写一句也好呀，空白就不存了 🌸', '✍️'); return; }
+  const old = e.id.value ? state.reviews.find((x) => x.id === e.id.value) : null;
   const data = {
     id: e.id.value || uid(), type: e.type.value, date: e.date.value, endDate: e.endDate.value,
-    mood: e.mood.value, good: e.good.value.trim(), words: e.words.value.trim(), next: e.next.value.trim(),
+    mood: e.mood.value, text, createdAt: old ? old.createdAt : new Date().toISOString(),
   };
+  /* 老字段留着（老数据、老导出文件里还有它们），但新写的不再产生 */
   const i = state.reviews.findIndex((x) => x.id === data.id);
   const isNew = i < 0;
   if (!isNew) state.reviews[i] = data; else state.reviews.push(data);
@@ -2998,16 +3000,17 @@ $('#priRow').addEventListener('click', (e) => {
   $$('#priRow button').forEach((x) => x.classList.toggle('on', x === b));
   $('#formTask').elements.priority.value = b.dataset.pri;
 });
-$('#reviewMood').addEventListener('click', (e) => {
+$('#reviewMood') && $('#reviewMood').addEventListener('click', (e) => {
   const b = e.target.closest('[data-mood]'); if (!b) return;
   $$('#reviewMood button').forEach((x) => x.classList.toggle('on', x === b));
   $('#formReview').elements.mood.value = b.dataset.mood;
 });
-$('#reviewType').addEventListener('change', () => {
-  $('#endField').classList.toggle('hidden', $('#formReview').elements.type.value !== 'stage');
+$('#reviewType') && $('#reviewType').addEventListener('change', () => {
+  $('#endField') && $('#endField').classList.toggle('hidden', $('#formReview').elements.type.value !== 'stage');
   updateAuto();
 });
-['date', 'endDate'].forEach((n) => $('#formReview').elements[n].addEventListener('change', updateAuto));
+['date', 'endDate'].forEach((n) => $('#formReview').elements[n]
+  && $('#formReview').elements[n].addEventListener('change', updateAuto));
 
 /* ==========================================================
    交互（事件委托）
@@ -3202,9 +3205,14 @@ document.addEventListener('click', (e) => {
     case 'rtab': ui.reviewTab = el.dataset.tab; schedule('view', renderView); break;
     case 'new-review': openReview(null, el.dataset.type, el.dataset.date); break;
     case 'edit-review': openReview(id); break;
-    case 'del-review':
-      state.reviews = state.reviews.filter((x) => x.id !== id); save();
-      schedule('view', renderView); toast('删掉啦'); break;
+    case 'del-review': {
+      const i = state.reviews.findIndex((x) => x.id === id);
+      if (i < 0) break;
+      const gone = state.reviews.splice(i, 1)[0];
+      save(); schedule('view', renderView);
+      toastUndo('这篇删掉了', () => { state.reviews.splice(i, 0, gone); save(); schedule('view', renderView); }, '💌');
+      break;
+    }
     case 'del-review-modal':
       state.reviews = state.reviews.filter((x) => x.id !== editing.review); save(); closeMasks();
       schedule('view', renderView); toast('删掉啦'); break;
@@ -3278,6 +3286,7 @@ document.addEventListener('click', (e) => {
     case 'restore': doRestore(); break;
     case 'close-backup': closeMasks(); break;
     case 'bk-text': bkText(); break;
+    case 'bk-html': bkHtml(); break;
     case 'bk-atts': bkAtts(); break;
     case 'bk-all': bkAll(); break;
     case 'bk-clean': bkClean(); break;
@@ -3541,12 +3550,25 @@ function exportMd() {
   download(`小日子_${t}.md`, md, 'text/markdown;charset=utf-8');
 }
 /* ---------- 备份：导出 / 导入 ---------- */
+/* 附件挂在两种复盘上：生活复盘（state.reviews）和备考复盘（state.study.reviews），
+   两边都要扫，不然录音和图片会漏在备份之外 */
+function attOwners() {
+  const out = [];
+  for (const r of state.reviews || []) if (Array.isArray(r.atts) && r.atts.length) out.push(r);
+  for (const r of (state.study && state.study.reviews) || []) if (Array.isArray(r.atts) && r.atts.length) out.push(r);
+  return out;
+}
 function attList() {
   const out = [];
-  for (const r of state.reviews || []) {
-    for (const a of r.atts || []) out.push(Object.assign({ date: r.date, reviewId: r.id }, a));
+  for (const r of attOwners()) {
+    for (const a of r.atts) out.push(Object.assign({ date: r.date }, a));
   }
   return out;
+}
+function markBacked(ids) {
+  for (const r of attOwners()) {
+    for (const a of r.atts) if (ids.has(a.id)) a.backed = Date.now();
+  }
 }
 function whenText(ts) {
   if (!ts) return '—';
@@ -3584,6 +3606,10 @@ async function renderBackup() {
       <i>📄</i>
       <div><b>文字数据</b><span>任务、复盘、纪念日、备考 · 几十 KB</span></div>
     </button>
+    <button class="bk-item" data-act="bk-html">
+      <i>🌐</i>
+      <div><b>可阅读的备份</b><span>一个网页，点开就能读，也能照样导回来</span></div>
+    </button>
     <button class="bk-item" data-act="bk-atts">
       <i>📎</i>
       <div><b>附件${pending.length ? `（${pending.length} 个 · ${Backup.fmtBytes(pendingBytes)}）` : '（都备份过了）'}</b>
@@ -3605,6 +3631,17 @@ async function bkText() {
   closeMasks();
   toast(r === 'shared' ? '已经发出去了，选个地方存好' : '已下载，记得放进网盘', '📤');
 }
+async function bkHtml() {
+  toast('正在排版…', '⏳');
+  try {
+    const blob = Backup.exportHtml(state, whoName());
+    const r = await Backup.share(blob, Backup.htmlName());
+    if (r === 'cancel') return;
+    markBackup();
+    closeMasks();
+    toast(r === 'shared' ? '存好了，点开就能看' : '已下载，双击就能看', '🌐');
+  } catch (e) { toast('生成失败：' + e.message, '⚠️'); }
+}
 async function bkAtts() {
   const all = attList();
   const list = all.filter((a) => !a.backed);
@@ -3617,9 +3654,7 @@ async function bkAtts() {
     const res = await Backup.share(r.blob, Backup.attsName());
     if (res === 'cancel') return;
     const ids = new Set(pick.map((a) => a.id));
-    for (const rev of state.reviews || []) {
-      for (const a of rev.atts || []) if (ids.has(a.id)) a.backed = Date.now();
-    }
+    markBacked(ids);
     markBackup();
     closeMasks();
     toast(`打包好了：${r.count} 个 · ${Backup.fmtBytes(r.bytes)}`, '📎');
@@ -3632,9 +3667,7 @@ async function bkAll() {
     const res = await Backup.share(r.blob, Backup.allName());
     if (res === 'cancel') return;
     const ids = new Set(attList().map((a) => a.id));
-    for (const rev of state.reviews || []) {
-      for (const a of rev.atts || []) if (ids.has(a.id)) a.backed = Date.now();
-    }
+    markBacked(ids);
     markBackup();
     closeMasks();
     toast(`全部打包好了：${Backup.fmtBytes(r.blob.size)}`, '🗂️');
@@ -3691,7 +3724,7 @@ function doPrint() {
    原则：① 跟手（位移 1:1 映射）② 松手吸附（距离或速度任一达标就翻页）
         ③ 到头有阻尼（橡皮筋）④ 竖滑永远优先给页面滚动
    ========================================================== */
-const VIEW_ORDER = ['today', 'study', 'review', 'calendar', 'garden'];
+const VIEW_ORDER = ['today', 'calendar', 'review', 'study', 'garden'];
 const isMobile = () => window.matchMedia('(max-width: 860px)').matches;
 const haptic = (ms = 8) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { } };
 const anyMaskOpen = () => !!document.querySelector('.mask.open');

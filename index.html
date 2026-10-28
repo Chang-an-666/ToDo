@@ -58,9 +58,9 @@
 
     <nav class="nav" id="nav">
       <button class="nav-item is-active" data-act="nav" data-view="today"><i>🏠</i><span>今天</span></button>
-      <button class="nav-item" data-act="nav" data-view="study"><i>📚</i><span>备考</span></button>
-      <button class="nav-item" data-act="nav" data-view="review"><i>💌</i><span>复盘</span></button>
       <button class="nav-item" data-act="nav" data-view="calendar"><i>📅</i><span>日历</span></button>
+      <button class="nav-item" data-act="nav" data-view="review"><i>💌</i><span>复盘</span></button>
+      <button class="nav-item" data-act="nav" data-view="study"><i>📚</i><span>备考</span></button>
       <button class="nav-item" data-act="nav" data-view="garden"><i>🌷</i><span>小花园</span></button>
     </nav>
 
@@ -77,7 +77,7 @@
       <button class="fn" data-act="open-profile"><i>👤</i><span>我的资料</span></button>
       <button class="fn" data-act="force-update"><i>🔄</i><span>检查更新</span></button>
       <button class="fn danger" data-act="clear"><i>🧹</i><span>清空数据</span></button>
-      <div class="side-ver"><span id="storeInfo">本机</span><br><span id="appVer">v3.0.4</span></div>
+      <div class="side-ver"><span id="storeInfo">本机</span><br><span id="appVer">v3.1.0</span></div>
     </div>
   </aside>
 
@@ -120,9 +120,9 @@
 <!-- ============ 手机端底部标签栏（iPhone 习惯） ============ -->
 <nav class="tabbar" id="tabbar" aria-label="主导航">
   <button class="tb-item is-active" data-act="nav" data-view="today"><i>🏠</i><span>今天</span></button>
-  <button class="tb-item" data-act="nav" data-view="study"><i>📚</i><span>备考</span></button>
-  <button class="tb-item" data-act="nav" data-view="review"><i>💌</i><span>复盘</span></button>
   <button class="tb-item" data-act="nav" data-view="calendar"><i>📅</i><span>日历</span></button>
+  <button class="tb-item" data-act="nav" data-view="review"><i>💌</i><span>复盘</span></button>
+  <button class="tb-item" data-act="nav" data-view="study"><i>📚</i><span>备考</span></button>
   <button class="tb-item" data-act="nav" data-view="garden"><i>🌷</i><span>花园</span></button>
 </nav>
 
@@ -203,42 +203,22 @@
 <!-- ============ 弹窗：复盘 ============ -->
 <div class="mask" id="maskReview">
   <div class="modal">
-    <div class="modal-head"><h3 id="reviewTitle">给自己的一封信</h3>
+    <div class="modal-head"><h3 id="reviewTitle">写几句</h3>
       <button class="round-btn" data-act="close-review">✕</button></div>
     <form class="modal-body form" id="formReview">
       <input type="hidden" name="id" />
-      <div class="grid-2">
-        <label class="field"><span>复盘什么</span>
-          <select name="type" id="reviewType">
-            <option value="day">今天</option>
-            <option value="week">这一周</option>
-            <option value="month">这个月</option>
-            <option value="stage">一个阶段</option>
-          </select></label>
-        <label class="field"><span>从哪天开始</span><input name="date" type="date" /></label>
-      </div>
-      <label class="field hidden" id="endField"><span>到哪天结束</span><input name="endDate" type="date" /></label>
-      <div class="auto-box" id="reviewAuto"></div>
-      <div class="field"><span>这段时间心情怎么样</span>
-        <div class="mood-row small" id="reviewMood">
-          <button type="button" data-mood="great">🤩</button>
-          <button type="button" data-mood="happy">😊</button>
-          <button type="button" data-mood="calm">🙂</button>
-          <button type="button" data-mood="tired">😪</button>
-          <button type="button" data-mood="down">🥺</button>
-        </div>
-        <input type="hidden" name="mood" value="happy" /></div>
-      <label class="field"><span>✨ 做得不错的地方 <em class="opt">想到几条写几条</em></span>
-        <textarea name="good" rows="2" placeholder="早起啦 / 把那件难的事做完了 / 给妈妈打了电话"></textarea></label>
-      <label class="field"><span>💬 想对自己说一句话</span>
-        <textarea name="words" rows="2" placeholder="今天有点累，但你已经很棒了，早点睡呀"></textarea></label>
-      <label class="field"><span>🌱 接下来先做哪一件 <em class="opt">可不填</em></span>
-        <textarea name="next" rows="1" placeholder="明天先把最难的那件做完"></textarea></label>
+      <input type="hidden" name="type" value="day" />
+      <input type="hidden" name="date" />
+      <input type="hidden" name="endDate" />
+      <input type="hidden" name="mood" value="happy" />
+      <div class="rv-when" id="reviewWhen"></div>
+      <textarea name="text" id="reviewText" class="rv-big" rows="8"
+        placeholder="这段时间，你想记住什么"></textarea>
       <div class="modal-foot">
         <button type="button" class="soft-btn danger hidden" id="btnDelReview" data-act="del-review-modal">删除</button>
         <div class="spacer"></div>
         <button type="button" class="soft-btn" data-act="close-review">再想想</button>
-        <button type="submit" class="soft-btn primary">收好这封信</button>
+        <button type="submit" class="soft-btn primary">记下来</button>
       </div>
     </form>
   </div>
@@ -455,7 +435,7 @@
   </div>
 </div>
 
-<input type="file" id="restoreFile" accept=".json,.zip,application/json,application/zip" hidden />
+<input type="file" id="restoreFile" accept=".json,.zip,.html,.htm,application/json,application/zip,text/html" hidden />
 
 <div class="toast" id="toast"></div>
 <div class="tm-pill hidden" id="tmPill"></div>
